@@ -15,7 +15,7 @@ async def get_weather(city: str) -> str:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file='.env', extra='ignore')
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     openai_api_key: str = Field()
 
@@ -28,7 +28,7 @@ async def main() -> None:
     weather_agent = AssistantAgent(
         name="weather_agent",
         model_client=OpenAIChatCompletionClient(
-            model="gpt-4o-2024-08-06",
+            model="gpt-4o-mini",
             api_key=settings.openai_api_key,
         ),
         tools=[get_weather],
