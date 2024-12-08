@@ -4,9 +4,8 @@ from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import TextMentionTermination
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.ui import Console
-from autogen_ext.models import OpenAIChatCompletionClient
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from util import model_client
 
 
 # Define a tool
@@ -14,23 +13,11 @@ async def get_weather(city: str) -> str:
     return f"The weather in {city} is 73 degrees and Sunny."
 
 
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-
-    openai_api_key: str = Field()
-
-
-settings = Settings()
-
-
 async def main() -> None:
     # Define an agent
     weather_agent = AssistantAgent(
         name="weather_agent",
-        model_client=OpenAIChatCompletionClient(
-            model="gpt-4o-mini",
-            api_key=settings.openai_api_key,
-        ),
+        model_client=model_client,
         tools=[get_weather],
     )
 
