@@ -1,0 +1,17 @@
+opentelemetry-exporter-prometheus
+opentelemetry-sdk
+opentelemetry-exporter-otlp-proto-http
+autogen-agentchat
+autogen-core
+autogen-ext
+
+pydantic
+pydantic-settings
+requests
+pillow
+loguru
+SQLAlchemy
+aiohttp
+langfuse
+python-dotenv
+openai
