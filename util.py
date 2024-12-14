@@ -2,8 +2,15 @@ import os
 
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from dotenv import load_dotenv
+from langfuse import Langfuse
+from opentelemetry import trace
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from tracing import LangFuseExporter
 
 
 class Settings(BaseSettings):
@@ -30,3 +37,19 @@ model_client = OpenAIChatCompletionClient(
     model="gpt-4o-mini",
     api_key=settings.openai_api_key,
 )
+
+
+def configure_tracing(langfuse_client: Langfuse):
+    resource = Resource(
+        attributes={
+            "service.name": "my-service",
+            "service.version": "1.0.0",
+        }
+    )
+
+    tracer_provider = TracerProvider(resource=resource)
+    langfuse_exporter = LangFuseExporter(langfuse_client=langfuse_client)
+    span_processor = BatchSpanProcessor(langfuse_exporter)
+    tracer_provider.add_span_processor(span_processor)
+    trace.set_tracer_provider(tracer_provider)
+    return tracer_provider
