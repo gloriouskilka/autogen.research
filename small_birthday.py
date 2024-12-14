@@ -50,10 +50,10 @@ async def main():
     )
 
     agent = AssistantAgent(
-        "Alice",
+        "NotAlice",
         model_client=model_client,
         handoffs=["user"],
-        system_message="You are Alice and you only answer questions about yourself, ask the user for help if needed.",
+        system_message="You are NotAlice and you only answer questions about yourself, ask the user for help if needed.",
     )
     termination = HandoffTermination(target="user") | MaxMessageTermination(3)
     team = Swarm([agent], termination_condition=termination)
@@ -66,7 +66,9 @@ async def main():
 
     # Resume with user feedback.
     await Console(
-        team.run_stream(task=HandoffMessage(source="user", target="Alice", content="Bob's birthday is on 1st January."))
+        team.run_stream(
+            task=HandoffMessage(source="user", target="NotAlice", content="Bob's birthday is on 1st January.")
+        )
     )
 
     test_function()
