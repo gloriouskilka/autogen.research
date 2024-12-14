@@ -27,42 +27,40 @@ logger.add(
 # Write a detailed Function description (it should be a Python code with Python documentation abilities used) explaining parameters in detail, write several examples of parameter values, returned values. This description will be used in a very sensitive context, the logic of a function will be regenerated based on description via LLM, so the function description should be very detailed, not to allow LLM to hallucinate.
 
 
-async def get_weather(city: str) -> str:
+def get_current_weather_information(city: str) -> str:
     """
-    Asynchronously fetches the current weather information for a specified city.
+    Retrieves the current weather information for a specified city using an external weather API.
 
     Parameters:
-        city (str):
-            - Description: The name of the city to retrieve weather data for.
-            - Requirements:
-                * Must be a non-empty string.
-                * Should correspond to a valid city recognized by the weather API.
-            - Example Values:
-                - "New York"
-                - "Paris"
-                - "Tokyo"
-                - "São Paulo"
+    city (str): The name of the city for which to obtain weather data.
+                - Must be a non-empty string.
+                - Example values: "London", "San Francisco", "Tokyo".
 
     Returns:
-        str:
-            - Description: A formatted string containing the current temperature and weather condition of the specified city.
-            - Format: "The weather in {city} is {temperature} degrees and {condition}."
-            - Example Returns:
-                - "The weather in New York is 22 degrees and sunny."
-                - "The weather in Paris is 18 degrees and cloudy."
+    str: A human-readable string describing the current weather in the specified city.
+         - Includes temperature and weather conditions.
+         - Example return values:
+             - "The weather in London is 15 degrees and rainy."
+             - "The weather in San Francisco is 22 degrees and sunny."
+             - "The weather in Tokyo is 18 degrees and cloudy."
 
     Raises:
-        ValueError:
-            - Condition: If the 'city' parameter is an empty string.
-            - Message: "City name must be a non-empty string."
-        aiohttp.ClientError:
-            - Condition: If a network-related error occurs during the API request.
-        KeyError:
-            - Condition: If expected data fields are missing in the API response.
-        Exception:
-            - Condition: For any other unforeseen errors during execution.
-    """
+    ValueError: If the `city` parameter is empty or not provided.
+    Exception: For any network issues, API errors, or unexpected problems during data retrieval.
 
+    Notes:
+    - The function interacts with an external API endpoint:
+      "https://api.weatherprovider.com/v1/current".
+    - An API key is required for authentication (replace 'YOUR_API_KEY' with a valid key).
+    - Ensure proper error handling when integrating this function into applications.
+
+    Examples:
+    >>> get_current_weather_information("Berlin")
+    "The weather in Berlin is 20 degrees and clear."
+
+    >>> get_current_weather_information("Sydney")
+    "The weather in Sydney is 25 degrees and sunny."
+    """
     if not city:
         raise ValueError("City name must be a non-empty string.")
 
@@ -97,7 +95,7 @@ async def get_weather(city: str) -> str:
 weather_agent = AssistantAgent(
     "assistant",
     model_client=model_client,
-    tools=[get_weather],
+    tools=[get_current_weather_information],
     system_message="Respond 'TERMINATE' when task is complete.",
 )
 logger.info("Assistant agent created.")
