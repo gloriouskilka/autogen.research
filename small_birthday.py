@@ -1,5 +1,11 @@
 import os
 
+# from langfuse.openai import openai
+#
+# from openai import OpenAI
+
+from langfuse import Langfuse
+
 from autogen_agentchat.messages import HandoffMessage
 from autogen_agentchat.ui import Console
 from autogen_core import SingleThreadedAgentRuntime
@@ -11,6 +17,9 @@ import sys
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import TextMentionTermination, MaxMessageTermination, HandoffTermination
 from autogen_agentchat.teams import RoundRobinGroupChat, Swarm
+from openai import OpenAI
+
+# from openai import OpenAI
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
 from util import model_client, settings
@@ -40,19 +49,51 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 # Write a detailed Function description (it should be a Python code with Python documentation abilities used) explaining parameters in detail, write several examples of parameter values, returned values. This description will be used in a very sensitive context, the logic of a function will be regenerated based on description via LLM, so the function description should be very detailed, not to allow LLM to hallucinate. Limit the description length to 800 symbols, renamed function to have a longer name if needed. No need to focus on async/not async Python implementation details, only focus on input parameters and output.
 
 
-@observe
-async def some_func():
-    await asyncio.sleep(1)
+langfuse = Langfuse(
+    secret_key="sk-lf-cf3281dd-c39f-417b-b9be-dbb9aed3ed25",
+    public_key="pk-lf-ca9dfb85-f21b-4e94-a162-97802f63bf59",
+    host="https://cloud.langfuse.com",
+)
+
+# WORKS
+langfuse.trace(id="123", name="test", metadata={"foo": "bar"})
+
+# langfuse.create_dataset_item(
+#     dataset_name="capital_cities",
+#     input={"input": {"country": "Italy"}},
+#     expected_output={"expected_output": "Rome"},
+#     metadata={"foo": "bar"},
+# )
+
+
+# langfuse.
+#
+
+#
+# @observe
+# async def some_func():
+#     client = OpenAI(api_key=settings.openai_api_key)
+#
+#     completion = client.chat.completions.create(
+#         model="gpt-4o",
+#         messages=[
+#             {"role": "system", "content": "You are a helpful assistant."},
+#             {"role": "user", "content": "Write a haiku about recursion in programming."},
+#         ],
+#     )
+#     logger.debug(completion.choices[0].message)
+#
+
+# from openai import OpenAI
 
 
 @observe
 async def main():
-
-    await some_func()
-    await some_func()
-    await some_func()
-    await some_func()
-
+    # await some_func()
+    # await some_func()
+    # await some_func()
+    # await some_func()
+    #
     # logger.debug(f"Settings: {settings}")
     # settings
     # tracer_provider = configure_oltp_tracing()
