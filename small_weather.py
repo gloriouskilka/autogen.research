@@ -120,7 +120,6 @@ async def get_weather(city: str) -> str:
 
     try:
         async with aiohttp.ClientSession() as session:
-            # Replace 'YOUR_API_ENDPOINT' and 'YOUR_API_KEY' with actual values
             api_url = f"https://api.weatherprovider.com/v1/current?city={city}&apikey=YOUR_API_KEY"
             async with session.get(api_url) as response:
                 if response.status != 200:
@@ -128,7 +127,6 @@ async def get_weather(city: str) -> str:
                     response.raise_for_status()
                 data = await response.json()
 
-                # Assuming the API returns JSON with 'temperature' and 'condition' fields
                 temperature = data["temperature"]
                 condition = data["condition"]
 
@@ -137,13 +135,13 @@ async def get_weather(city: str) -> str:
                 return weather_info
 
     except aiohttp.ClientError as e:
-        logger.error(f"Network error occurred while fetching weather for {city}: {e}")
+        logger.error(f"Network error while fetching weather for {city}: {e}")
         raise
     except KeyError as e:
-        logger.error(f"Missing expected data in the API response for {city}: {e}")
+        logger.error(f"Missing data in API response for {city}: {e}")
         raise
     except Exception as e:
-        logger.error(f"An unexpected error occurred: {e}")
+        logger.error(f"Unexpected error: {e}")
         raise
 
 
