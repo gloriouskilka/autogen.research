@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime
+from typing import Dict, Any
 
 from autogen_agentchat.ui import Console
 from autogen_agentchat.agents import AssistantAgent
@@ -10,26 +11,20 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-import asyncio
-from typing import Any, Dict, List
-
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select, func
 
-# Import Autogen components
-from autogen_agentchat.agents import AssistantAgent
-from autogen_agentchat.conditions import HandoffTermination, TextMentionTermination
-from autogen_agentchat.messages import HandoffMessage
-from autogen_agentchat.teams import Swarm
-from autogen_ext.models.openai import OpenAIChatCompletionClient
-from autogen_agentchat.ui import Console
-from autogen_core.tools import FunctionTool, Tool
+from autogen_core.tools import FunctionTool
+
+# ---------------------------
+# Settings and Configuration
+# ---------------------------
 
 
 class Settings(BaseSettings):
-    openai_api_key: str = ""
+    openai_api_key: str = None
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 
@@ -41,7 +36,6 @@ settings = Settings()
 
 DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
-# Define metadata object
 metadata = sa.MetaData()
 
 # Define tables
@@ -52,12 +46,12 @@ sales_table = sa.Table(
     sa.Column("product_name", sa.String),
     sa.Column("color", sa.String),
     sa.Column("size", sa.String),
-    sa.Column("quantity", sa.Integer),
+    sa.Column("quantity_sold", sa.Integer),
     sa.Column("date", sa.Date),
 )
 
-user_feedback_table = sa.Table(
-    "user_feedback",
+customer_feedback_table = sa.Table(
+    "customer_feedback",
     metadata,
     sa.Column("id", sa.Integer, primary_key=True),
     sa.Column("product_name", sa.String),
@@ -78,156 +72,184 @@ async def init_db():
         await conn.run_sync(metadata.create_all)
 
     async with AsyncSessionLocal() as session:
-        # Sample sales data with date conversion
+        # Sample sales data
         sample_sales = [
             {
-                "product_name": "Large Yellow Hat",
+                "product_name": "Yellow Hat",
                 "color": "Yellow",
                 "size": "Large",
-                "quantity": 100,
+                "quantity_sold": 120,
+                "date": datetime.strptime("2023-06-01", "%Y-%m-%d").date(),
+            },
+            {
+                "product_name": "Yellow Hat",
+                "color": "Yellow",
+                "size": "Large",
+                "quantity_sold": 80,
                 "date": datetime.strptime("2023-07-01", "%Y-%m-%d").date(),
             },
             {
-                "product_name": "Large Yellow Hat",
+                "product_name": "Yellow Hat",
                 "color": "Yellow",
                 "size": "Large",
-                "quantity": 80,
+                "quantity_sold": 40,
                 "date": datetime.strptime("2023-08-01", "%Y-%m-%d").date(),
             },
             {
-                "product_name": "Large Yellow Hat",
+                "product_name": "Yellow Hat",
                 "color": "Yellow",
                 "size": "Large",
-                "quantity": 50,
+                "quantity_sold": 20,
                 "date": datetime.strptime("2023-09-01", "%Y-%m-%d").date(),
             },
-            {
-                "product_name": "Large Yellow Hat",
-                "color": "Yellow",
-                "size": "Large",
-                "quantity": 20,
-                "date": datetime.strptime("2023-10-01", "%Y-%m-%d").date(),
-            },
         ]
-        # Sample user feedback data with date conversion
+        # Sample customer feedback data
         sample_feedback = [
             {
-                "product_name": "Large Yellow Hat",
-                "feedback": "Great quality!",
-                "date": datetime.strptime("2023-07-05", "%Y-%m-%d").date(),
+                "product_name": "Yellow Hat",
+                "feedback": "The hat fades after washing.",
+                "date": datetime.strptime("2023-07-15", "%Y-%m-%d").date(),
             },
             {
-                "product_name": "Large Yellow Hat",
-                "feedback": "Too big for me.",
-                "date": datetime.strptime("2023-08-15", "%Y-%m-%d").date(),
+                "product_name": "Yellow Hat",
+                "feedback": "Size runs too big.",
+                "date": datetime.strptime("2023-08-10", "%Y-%m-%d").date(),
             },
             {
-                "product_name": "Large Yellow Hat",
-                "feedback": "Color faded after washing.",
-                "date": datetime.strptime("2023-09-10", "%Y-%m-%d").date(),
+                "product_name": "Yellow Hat",
+                "feedback": "Color is not as vibrant as pictured.",
+                "date": datetime.strptime("2023-08-20", "%Y-%m-%d").date(),
             },
             {
-                "product_name": "Large Yellow Hat",
-                "feedback": "Not as described.",
-                "date": datetime.strptime("2023-09-20", "%Y-%m-%d").date(),
+                "product_name": "Yellow Hat",
+                "feedback": "Uncomfortable to wear for long periods.",
+                "date": datetime.strptime("2023-09-05", "%Y-%m-%d").date(),
             },
         ]
 
         # Insert data
         await session.execute(sales_table.insert(), sample_sales)
-        await session.execute(user_feedback_table.insert(), sample_feedback)
+        await session.execute(customer_feedback_table.insert(), sample_feedback)
         await session.commit()
+
+
+# ---------------------------
+# Tool Definitions
+# ---------------------------
 
 
 # Tool to execute SQL queries
 async def execute_sql_query(query_name: str) -> Dict[str, Any]:
     async with AsyncSessionLocal() as session:
-        if query_name == "sales_trends":
-            # Example: Get monthly sales quantities
+        if query_name == "get_sales_data":
             stmt = (
                 select(
                     sales_table.c.date,
-                    func.sum(sales_table.c.quantity).label("total_quantity"),
+                    sales_table.c.quantity_sold,
                 )
-                .group_by(sales_table.c.date)
+                .where(sales_table.c.product_name == "Yellow Hat")
                 .order_by(sales_table.c.date)
             )
             result = await session.execute(stmt)
             data = result.fetchall()
-            return {"sales_trends": [{"date": str(row.date), "total_quantity": row.total_quantity} for row in data]}
-        elif query_name == "user_feedback":
-            # Example: Get recent user feedback
+            return {
+                "sales_data": [
+                    {"date": row.date.strftime("%Y-%m-%d"), "quantity_sold": row.quantity_sold} for row in data
+                ]
+            }
+        elif query_name == "get_customer_feedback":
             stmt = (
-                select(user_feedback_table.c.feedback, user_feedback_table.c.date)
-                .order_by(user_feedback_table.c.date.desc())
-                .limit(5)
+                select(
+                    customer_feedback_table.c.feedback,
+                    customer_feedback_table.c.date,
+                )
+                .where(customer_feedback_table.c.product_name == "Yellow Hat")
+                .order_by(customer_feedback_table.c.date)
             )
             result = await session.execute(stmt)
             data = result.fetchall()
-            return {"user_feedback": [{"date": str(row.date), "feedback": row.feedback} for row in data]}
+            return {
+                "customer_feedback": [{"date": row.date.strftime("%Y-%m-%d"), "feedback": row.feedback} for row in data]
+            }
         else:
             return {"error": f"Unknown query name: {query_name}"}
 
 
 # Tool to analyze data
 async def analyze_data(data: Dict[str, Any]) -> Dict[str, Any]:
-    if not data:
-        return {"error": "No data provided for analysis."}
-
-    # Perform analysis on the data
     analysis_results = {}
-    if "sales_trends" in data:
-        sales_data = data["sales_trends"]
-        quantities = [entry["total_quantity"] for entry in sales_data]
-        if len(quantities) >= 2 and quantities[-1] < quantities[-2]:
-            analysis_results["sales_trend"] = "Decrease in sales observed in the most recent month."
+
+    # Analyze sales trends
+    if "sales_data" in data:
+        sales = data["sales_data"]
+        quantities = [entry["quantity_sold"] for entry in sales]
+        if len(quantities) >= 2:
+            if quantities[-1] < quantities[0]:
+                analysis_results["sales_trend"] = "Sales of Yellow Hats have significantly decreased over time."
+            else:
+                analysis_results["sales_trend"] = "Sales are stable or increasing."
         else:
-            analysis_results["sales_trend"] = "Sales are stable or increasing."
-    if "user_feedback" in data:
-        feedback_data = data["user_feedback"]
-        negative_feedback = [
-            fb
-            for fb in feedback_data
-            if "not" in fb["feedback"].lower() or "too" in fb["feedback"].lower() or "faded" in fb["feedback"].lower()
-        ]
+            analysis_results["sales_trend"] = "Not enough data to determine sales trends."
+    else:
+        analysis_results["sales_trend"] = "Sales data not provided."
+
+    # Analyze customer feedback
+    if "customer_feedback" in data:
+        feedback_list = data["customer_feedback"]
+        negative_feedback = []
+        for feedback in feedback_list:
+            if any(
+                keyword in feedback["feedback"].lower()
+                for keyword in ["fade", "size", "color", "uncomfortable", "not as pictured"]
+            ):
+                negative_feedback.append(feedback)
         if negative_feedback:
-            analysis_results["user_feedback_analysis"] = (
-                f"Negative feedback detected: {len(negative_feedback)} instances."
+            analysis_results["customer_feedback_analysis"] = (
+                f"Negative feedback indicates issues with product quality: {len(negative_feedback)} instances."
             )
         else:
-            analysis_results["user_feedback_analysis"] = "User feedback is generally positive."
+            analysis_results["customer_feedback_analysis"] = "Customer feedback is generally positive."
+    else:
+        analysis_results["customer_feedback_analysis"] = "Customer feedback data not provided."
+
     return analysis_results
 
 
 # Wrap tools with FunctionTool
-execute_sql_query_tool = FunctionTool(execute_sql_query, description="Execute predefined SQL queries to retrieve data.")
-analyze_data_tool = FunctionTool(analyze_data, description="Analyze data and provide insights.")
+execute_sql_query_tool = FunctionTool(
+    execute_sql_query,
+    description="Execute predefined SQL queries to retrieve sales or customer feedback data.",
+)
+analyze_data_tool = FunctionTool(
+    analyze_data,
+    description="Analyze sales and customer feedback data to provide insights.",
+)
 
 # ---------------------------
 # Agents
 # ---------------------------
 
-
 model_client = OpenAIChatCompletionClient(
     model="gpt-4o",
-    # temperature=1,
     api_key=settings.openai_api_key,
 )
 
+# Planner Agent
 planner_agent = AssistantAgent(
     name="PlannerAgent",
     model_client=model_client,
     handoffs=["SQLQueryAgent", "DataAnalysisAgent", "ExplanationAgent"],
-    system_message="""You are the PlannerAgent. Your role is to coordinate the process.
+    system_message="""
+You are the PlannerAgent. Your role is to coordinate the investigation to understand why Yellow Hats are not popular.
 
-- **Step 1**: Ask the SQLQueryAgent to retrieve relevant sales and feedback data.
+- **Step 1**: Ask the SQLQueryAgent to retrieve sales data and customer feedback for Yellow Hats.
 - **Step 2**: When you receive data from SQLQueryAgent, include this data in the HandoffMessage content to DataAnalysisAgent.
-- **Step 3**: Request the ExplanationAgent to generate a clear explanation based on the analysis.
+- **Step 3**: Request the DataAnalysisAgent to analyze the data.
+- **Step 4**: Send the analysis results to ExplanationAgent for generating a comprehensive explanation.
 
 Always include necessary data in your handoffs.
 """,
 )
-
 
 # SQL Query Agent
 sql_query_agent = AssistantAgent(
@@ -235,60 +257,27 @@ sql_query_agent = AssistantAgent(
     model_client=model_client,
     tools=[execute_sql_query_tool],
     handoffs=["PlannerAgent"],
-    system_message="""You are the SQLQueryAgent.
+    system_message="""
+You are the SQLQueryAgent.
 
-- Use the `execute_sql_query` tool to run predefined queries.
-- Available queries: "sales_trends", "user_feedback".
+- Use the `execute_sql_query` tool to run predefined queries: "get_sales_data" or "get_customer_feedback".
+- Retrieve sales trends and customer feedback for Yellow Hats.
 - After execution, include the retrieved data in the HandoffMessage content and return it to PlannerAgent.
-
-If you encounter any issues, inform the PlannerAgent.
 """,
 )
-#
-# class DataAnalysisAgent(AssistantAgent):
-#     async def on_messages(self, messages, cancellation_token):
-#         # Extract data from the last message
-#         last_message = messages[-1]
-#         if isinstance(last_message, HandoffMessage) and last_message.source == "PlannerAgent":
-#             data_content = last_message.content
-#             # Assuming the data is included as a string representation of the dictionary
-#             import ast
-#             try:
-#                 data = ast.literal_eval(data_content.replace("Here is the data:", "").strip())
-#             except Exception as e:
-#                 # Handle parsing error
-#                 response = "Error parsing data. Inform PlannerAgent."
-#         else:
-#             # No data received
-#             response = "No data received. Inform PlannerAgent."
-#
-#         # Use the analyze_data tool
-#         if data:
-#             analysis_results = await analyze_data(data)
-#             # Create a HandoffMessage to PlannerAgent with the analysis results
-#             handoff_message = HandoffMessage(
-#                 source="DataAnalysisAgent",
-#                 target="PlannerAgent",
-#                 content=f"Here is the analysis results: {analysis_results}"
-#             )
-#             # Send the HandoffMessage
-#             return HandoffMessage(content=analysis_results, target="PlannerAgent")
-#
 
 # Data Analysis Agent
-# data_analysis_agent = DataAnalysisAgent(
 data_analysis_agent = AssistantAgent(
     name="DataAnalysisAgent",
     model_client=model_client,
     tools=[analyze_data_tool],
     handoffs=["PlannerAgent"],
-    system_message="""You are the DataAnalysisAgent.
+    system_message="""
+You are the DataAnalysisAgent.
 
-- Receive data from the PlannerAgent via HandoffMessage content.
-- Use the `analyze_data` tool to analyze the data provided.
+- Receive data from PlannerAgent via HandoffMessage content.
+- Use the `analyze_data` tool to analyze the sales and customer feedback data provided.
 - Return the analysis results to PlannerAgent in a HandoffMessage.
-
-If data is missing or invalid, inform the PlannerAgent.
 """,
 )
 
@@ -297,10 +286,11 @@ explanation_agent = AssistantAgent(
     name="ExplanationAgent",
     model_client=model_client,
     handoffs=[],
-    system_message="""You are the ExplanationAgent.
+    system_message="""
+You are the ExplanationAgent.
 
 - Generate a clear and comprehensive explanation based on the analysis results.
-- Provide actionable insights and recommendations.
+- Provide actionable insights and recommendations to improve the popularity of Yellow Hats.
 - Once done, reply directly to the user and mention 'TERMINATE' to end the conversation.
 """,
 )
@@ -330,14 +320,15 @@ team = Swarm(
 # ---------------------------
 
 # Define the task
-task = "Why have users stopped buying large yellow hats?"
+task = "Investigate why Yellow Hats are not popular in our shop."
 
 
 # Run the team
 async def main():
-    # Run database initialization
+    # Initialize the database with sample data
     await init_db()
 
+    # Run the task
     await Console(team.run_stream(task=task))
 
 
