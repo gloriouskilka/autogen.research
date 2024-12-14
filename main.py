@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from autogen_agentchat.ui import Console
 from autogen_agentchat.agents import AssistantAgent
@@ -14,7 +14,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select, func
+from sqlalchemy import select
 
 from autogen_core.tools import FunctionTool
 
@@ -190,11 +190,6 @@ async def init_db():
 # ---------------------------
 
 
-# ---------------------------
-# Tool Definitions
-# ---------------------------
-
-
 # Tool to execute SQL queries
 async def execute_sql_query(query_name: str, product_name: str) -> Dict[str, Any]:
     async with AsyncSessionLocal() as session:
@@ -269,12 +264,18 @@ async def analyze_data(product_name: str, data: Dict[str, Any]) -> Dict[str, Any
                     "not",
                     "too",
                     "faded",
+                    "issues",
+                    "problem",
+                    "dislike",
+                    "unhappy",
+                    "poor",
+                    "bad",
                 ]
             ):
                 negative_feedback.append(feedback)
         if negative_feedback:
             analysis_results["customer_feedback_analysis"] = (
-                f"Negative feedback for {product_name} indicates issues with product quality: {len(negative_feedback)} instances."
+                f"Customer feedback for {product_name} indicates issues with product quality: {len(negative_feedback)} instances."
             )
         else:
             analysis_results["customer_feedback_analysis"] = (
@@ -311,16 +312,17 @@ planner_agent = AssistantAgent(
     model_client=model_client,
     handoffs=["SQLQueryAgent", "DataAnalysisAgent", "ExplanationAgent"],
     system_message="""
-You are the PlannerAgent. Your role is to coordinate the investigation to understand why Yellow Hats are not popular.
+You are the PlannerAgent. Your role is to coordinate the investigation to understand issues with any product.
 
-- **Step 1**: Ask the SQLQueryAgent to retrieve sales data and customer feedback for Yellow Hats.
-- **Step 2**: When you receive data from SQLQueryAgent, include this data in the HandoffMessage content to DataAnalysisAgent.
+- **Step 1**: Ask the SQLQueryAgent to retrieve sales data and customer feedback for the specified product.
+- **Step 2**: When you receive data from SQLQueryAgent, include this data in the `HandoffMessage` content when sending it to DataAnalysisAgent. The content should be a JSON object containing `product_name` and `data`.
 - **Step 3**: Request the DataAnalysisAgent to analyze the data.
 - **Step 4**: Send the analysis results to ExplanationAgent for generating a comprehensive explanation.
 
 Always include necessary data in your handoffs.
 """,
 )
+
 
 # SQL Query Agent
 sql_query_agent = AssistantAgent(
@@ -332,7 +334,7 @@ sql_query_agent = AssistantAgent(
 You are the SQLQueryAgent.
 
 - Use the `execute_sql_query` tool to run predefined queries: "get_sales_data" or "get_customer_feedback".
-- Retrieve sales trends and customer feedback for Yellow Hats.
+- Retrieve sales trends and customer feedback for the specified product.
 - After execution, include the retrieved data in the HandoffMessage content and return it to PlannerAgent.
 """,
 )
@@ -346,11 +348,15 @@ data_analysis_agent = AssistantAgent(
     system_message="""
 You are the DataAnalysisAgent.
 
-- Receive data from PlannerAgent via HandoffMessage content.
-- Use the `analyze_data` tool to analyze the sales and customer feedback data provided.
+- Receive data from PlannerAgent via `HandoffMessage` content.
+- The content will be a JSON object containing `product_name` and `data`.
+- Before calling `analyze_data`, check if both `product_name` and `data` are present.
+- If any are missing, inform `PlannerAgent` about the missing information.
+- Use the `analyze_data` tool by providing `product_name` and `data` as arguments.
 - Return the analysis results to PlannerAgent in a HandoffMessage.
 """,
 )
+
 
 # Explanation Agent
 explanation_agent = AssistantAgent(
@@ -361,7 +367,7 @@ explanation_agent = AssistantAgent(
 You are the ExplanationAgent.
 
 - Generate a clear and comprehensive explanation based on the analysis results.
-- Provide actionable insights and recommendations to improve the popularity of Yellow Hats.
+- Provide actionable insights and recommendations to improve the product's performance.
 - Once done, reply directly to the user and mention 'TERMINATE' to end the conversation.
 """,
 )
@@ -390,17 +396,24 @@ team = Swarm(
 # Execution
 # ---------------------------
 
-# Define the task
-task = "Investigate why Yellow Hats are not popular in our shop."
-
 
 # Run the team
 async def main():
     # Initialize the database with sample data
     await init_db()
 
-    # Run the task
-    await Console(team.run_stream(task=task))
+    # Define the tasks
+    tasks = [
+        "Investigate why Black Hat is becoming more popular in our shop.",
+        "Investigate why Yellow Hat is not popular in our shop.",
+    ]
+
+    # Run the tasks sequentially
+    for task in tasks:
+        print(f"--- Starting task: {task} ---\n")
+        await Console(team.run_stream(task=task))
+        print(f"\n--- Completed task: {task} ---\n")
+        await team.reset()  # Reset the team state before each task
 
 
 if __name__ == "__main__":
