@@ -138,14 +138,6 @@ async def init_db():
         await session.commit()
 
 
-# Run database initialization
-asyncio.run(init_db())
-
-# ---------------------------
-# Tools
-# ---------------------------
-
-
 # Tool to execute SQL queries
 async def execute_sql_query(query_name: str) -> Dict[str, Any]:
     async with AsyncSessionLocal() as session:
@@ -230,10 +222,18 @@ analyze_data_tool = FunctionTool(
 # Agents
 # ---------------------------
 
+
+model_client = OpenAIChatCompletionClient(
+    model="gpt-4o",
+    # temperature=1,
+    api_key=settings.openai_api_key,
+)
+
+
 # Planner Agent
 planner_agent = AssistantAgent(
     name="PlannerAgent",
-    model_client=OpenAIChatCompletionClient(model="gpt-4"),
+    model_client=model_client,
     handoffs=["SQLQueryAgent", "DataAnalysisAgent", "ExplanationAgent"],
     system_message="""You are the PlannerAgent. Your role is to coordinate the process of analyzing why users have stopped buying large yellow hats.
 
@@ -249,7 +249,7 @@ Always handoff to the appropriate agent after each step by sending a HandoffMess
 # SQL Query Agent
 sql_query_agent = AssistantAgent(
     name="SQLQueryAgent",
-    model_client=OpenAIChatCompletionClient(model="gpt-4"),
+    model_client=model_client,
     tools=[execute_sql_query_tool],
     handoffs=["PlannerAgent"],
     system_message="""You are the SQLQueryAgent.
@@ -265,7 +265,7 @@ If you encounter any issues, inform the PlannerAgent.
 # Data Analysis Agent
 data_analysis_agent = AssistantAgent(
     name="DataAnalysisAgent",
-    model_client=OpenAIChatCompletionClient(model="gpt-4"),
+    model_client=model_client,
     tools=[analyze_data_tool],
     handoffs=["PlannerAgent"],
     system_message="""You are the DataAnalysisAgent.
@@ -280,7 +280,7 @@ If data is missing or invalid, inform the PlannerAgent.
 # Explanation Agent
 explanation_agent = AssistantAgent(
     name="ExplanationAgent",
-    model_client=OpenAIChatCompletionClient(model="gpt-4"),
+    model_client=model_client,
     handoffs=[],
     system_message="""You are the ExplanationAgent.
 
@@ -320,6 +320,9 @@ task = "Why have users stopped buying large yellow hats?"
 
 # Run the team
 async def main():
+    # Run database initialization
+    await init_db()
+
     await Console(team.run_stream(task=task))
 
 
