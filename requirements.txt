@@ -1,3 +1,4 @@
+opentelemetry-exporter-prometheus
 opentelemetry-sdk
 opentelemetry-exporter-otlp-proto-http
 autogen-agentchat
