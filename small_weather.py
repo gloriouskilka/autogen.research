@@ -1,3 +1,4 @@
+from autogen_core import SingleThreadedAgentRuntime
 from loguru import logger
 import sys
 
@@ -5,22 +6,29 @@ import sys
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import TextMentionTermination
 from autogen_agentchat.teams import RoundRobinGroupChat
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
 from util import model_client
 
 import aiohttp
 
 
-# Configure loguru
-logger.remove()  # Remove default handler
-logger.add(
-    sys.stderr,
-    format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
-    "<level>{level: <8}</level> | "
-    "<cyan>{module}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-    "<level>{message}</level>",
-    level="INFO",
-)
+from opentelemetry import trace
+
+# from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+
+def configure_oltp_tracing(endpoint: str = None) -> trace.TracerProvider:
+    # Configure Tracing
+    tracer_provider = TracerProvider(resource=Resource({"service.name": "my-service"}))
+    processor = BatchSpanProcessor(OTLPSpanExporter())
+    tracer_provider.add_span_processor(processor)
+    trace.set_tracer_provider(tracer_provider)
+
+    return tracer_provider
 
 
 # Prompt used:
@@ -81,25 +89,38 @@ async def get_current_weather_information(city: str) -> str:
         raise
 
 
-# Create an assistant agent.
-weather_agent = AssistantAgent(
-    "assistant",
-    model_client=model_client,
-    tools=[get_current_weather_information],
-    system_message="Respond 'TERMINATE' when task is complete.",
-)
-logger.info("Assistant agent created.")
+async def main():
+    tracer_provider = configure_oltp_tracing()
+    single_threaded_runtime = SingleThreadedAgentRuntime(tracer_provider=tracer_provider)
 
-# Define a termination condition.
-text_termination = TextMentionTermination("TERMINATE")
-logger.info("Termination condition defined.")
+    # Configure loguru
+    logger.remove()  # Remove default handler
+    logger.add(
+        sys.stderr,
+        format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
+        "<level>{level: <8}</level> | "
+        "<cyan>{module}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+        "<level>{message}</level>",
+        level="INFO",
+    )
 
-# Create a single-agent team.
-single_agent_team = RoundRobinGroupChat([weather_agent], termination_condition=text_termination)
-logger.info("Single-agent team created.")
+    # Create an assistant agent.
+    weather_agent = AssistantAgent(
+        "assistant",
+        model_client=model_client,
+        tools=[get_current_weather_information],
+        system_message="Respond 'TERMINATE' when task is complete.",
+    )
+    logger.info("Assistant agent created.")
 
+    # Define a termination condition.
+    text_termination = TextMentionTermination("TERMINATE")
+    logger.info("Termination condition defined.")
 
-async def run_team() -> None:
+    # Create a single-agent team.
+    single_agent_team = RoundRobinGroupChat([weather_agent], termination_condition=text_termination)
+    logger.info("Single-agent team created.")
+
     logger.info("Starting team run.")
     result = await single_agent_team.run(task="What is the weather in New York?")
     logger.info(f"Team run completed with result: {result}")
@@ -109,4 +130,4 @@ async def run_team() -> None:
 if __name__ == "__main__":
     import asyncio
 
-    asyncio.run(run_team())
+    asyncio.run(main())
