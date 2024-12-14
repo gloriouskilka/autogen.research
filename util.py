@@ -1,4 +1,7 @@
+import os
+
 from autogen_ext.models.openai import OpenAIChatCompletionClient
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -15,6 +18,13 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+# to set env vars - used by langfuse
+load_dotenv()
+
+# Print those env vars:
+print("LANGFUSE_PUBLIC_KEY:", os.getenv("LANGFUSE_PUBLIC_KEY"))
+# print("LANGFUSE_SECRET_KEY:", os.getenv("LANGFUSE_SECRET_KEY"))
+print("LANGFUSE_HOST:", os.getenv("LANGFUSE_HOST"))
 
 model_client = OpenAIChatCompletionClient(
     model="gpt-4o-mini",

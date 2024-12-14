@@ -51,6 +51,10 @@ langfuse = Langfuse(
 )
 
 
+logger.info(f"Langfuse host: {langfuse.base_url}")
+logger.info(f"Langfuse project_id: {langfuse.project_id}")
+
+
 def configure_otlp_tracing(endpoint: str = None) -> TracerProvider:
     """
     Configure the OpenTelemetry tracer provider with an OTLP exporter that sends
@@ -76,8 +80,8 @@ def configure_otlp_tracing(endpoint: str = None) -> TracerProvider:
 
     # Configure the OTLP exporter
     otlp_exporter = OTLPSpanExporter(
-        endpoint=endpoint or f"{Langfuse.host}/otel/v1/traces",
-        # endpoint=endpoint or f"{langfuse.host}/otel/v1/traces",
+        # endpoint=endpoint or f"{Langfuse.host}/otel/v1/traces",
+        endpoint=endpoint or f"{langfuse.base_url}/otel/v1/traces",
         # headers={"Authorization": f"Bearer {langfuse.secret_key}"},
         headers={"Authorization": f"Bearer {settings.langfuse_secret_key}"},
     )

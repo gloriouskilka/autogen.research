@@ -12,3 +12,5 @@ loguru
 SQLAlchemy
 aiohttp
 langfuse
+python-dotenv
+openai
