@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 
 from autogen_agentchat.ui import Console
 from autogen_agentchat.agents import AssistantAgent
@@ -77,58 +78,58 @@ async def init_db():
         await conn.run_sync(metadata.create_all)
 
     async with AsyncSessionLocal() as session:
-        # Sample sales data
+        # Sample sales data with date conversion
         sample_sales = [
             {
                 "product_name": "Large Yellow Hat",
                 "color": "Yellow",
                 "size": "Large",
                 "quantity": 100,
-                "date": "2023-07-01",
+                "date": datetime.strptime("2023-07-01", "%Y-%m-%d").date(),
             },
             {
                 "product_name": "Large Yellow Hat",
                 "color": "Yellow",
                 "size": "Large",
                 "quantity": 80,
-                "date": "2023-08-01",
+                "date": datetime.strptime("2023-08-01", "%Y-%m-%d").date(),
             },
             {
                 "product_name": "Large Yellow Hat",
                 "color": "Yellow",
                 "size": "Large",
                 "quantity": 50,
-                "date": "2023-09-01",
+                "date": datetime.strptime("2023-09-01", "%Y-%m-%d").date(),
             },
             {
                 "product_name": "Large Yellow Hat",
                 "color": "Yellow",
                 "size": "Large",
                 "quantity": 20,
-                "date": "2023-10-01",
+                "date": datetime.strptime("2023-10-01", "%Y-%m-%d").date(),
             },
         ]
-        # Sample user feedback data
+        # Sample user feedback data with date conversion
         sample_feedback = [
             {
                 "product_name": "Large Yellow Hat",
                 "feedback": "Great quality!",
-                "date": "2023-07-05",
+                "date": datetime.strptime("2023-07-05", "%Y-%m-%d").date(),
             },
             {
                 "product_name": "Large Yellow Hat",
                 "feedback": "Too big for me.",
-                "date": "2023-08-15",
+                "date": datetime.strptime("2023-08-15", "%Y-%m-%d").date(),
             },
             {
                 "product_name": "Large Yellow Hat",
                 "feedback": "Color faded after washing.",
-                "date": "2023-09-10",
+                "date": datetime.strptime("2023-09-10", "%Y-%m-%d").date(),
             },
             {
                 "product_name": "Large Yellow Hat",
                 "feedback": "Not as described.",
-                "date": "2023-09-20",
+                "date": datetime.strptime("2023-09-20", "%Y-%m-%d").date(),
             },
         ]
 
@@ -153,12 +154,7 @@ async def execute_sql_query(query_name: str) -> Dict[str, Any]:
             )
             result = await session.execute(stmt)
             data = result.fetchall()
-            return {
-                "sales_trends": [
-                    {"date": str(row.date), "total_quantity": row.total_quantity}
-                    for row in data
-                ]
-            }
+            return {"sales_trends": [{"date": str(row.date), "total_quantity": row.total_quantity} for row in data]}
         elif query_name == "user_feedback":
             # Example: Get recent user feedback
             stmt = (
@@ -168,11 +164,7 @@ async def execute_sql_query(query_name: str) -> Dict[str, Any]:
             )
             result = await session.execute(stmt)
             data = result.fetchall()
-            return {
-                "user_feedback": [
-                    {"date": str(row.date), "feedback": row.feedback} for row in data
-                ]
-            }
+            return {"user_feedback": [{"date": str(row.date), "feedback": row.feedback} for row in data]}
         else:
             return {"error": f"Unknown query name: {query_name}"}
 
@@ -185,9 +177,7 @@ async def analyze_data(data: Dict[str, Any]) -> Dict[str, Any]:
         sales_data = data["sales_trends"]
         quantities = [entry["total_quantity"] for entry in sales_data]
         if len(quantities) >= 2 and quantities[-1] < quantities[-2]:
-            analysis_results["sales_trend"] = (
-                "Decrease in sales observed in the most recent month."
-            )
+            analysis_results["sales_trend"] = "Decrease in sales observed in the most recent month."
         else:
             analysis_results["sales_trend"] = "Sales are stable or increasing."
     if "user_feedback" in data:
@@ -195,28 +185,20 @@ async def analyze_data(data: Dict[str, Any]) -> Dict[str, Any]:
         negative_feedback = [
             fb
             for fb in feedback_data
-            if "not" in fb["feedback"].lower()
-            or "too" in fb["feedback"].lower()
-            or "faded" in fb["feedback"].lower()
+            if "not" in fb["feedback"].lower() or "too" in fb["feedback"].lower() or "faded" in fb["feedback"].lower()
         ]
         if negative_feedback:
             analysis_results["user_feedback_analysis"] = (
                 f"Negative feedback detected: {len(negative_feedback)} instances."
             )
         else:
-            analysis_results["user_feedback_analysis"] = (
-                "User feedback is generally positive."
-            )
+            analysis_results["user_feedback_analysis"] = "User feedback is generally positive."
     return analysis_results
 
 
 # Wrap tools with FunctionTool
-execute_sql_query_tool = FunctionTool(
-    execute_sql_query, description="Execute predefined SQL queries to retrieve data."
-)
-analyze_data_tool = FunctionTool(
-    analyze_data, description="Analyze data and provide insights."
-)
+execute_sql_query_tool = FunctionTool(execute_sql_query, description="Execute predefined SQL queries to retrieve data.")
+analyze_data_tool = FunctionTool(analyze_data, description="Analyze data and provide insights.")
 
 # ---------------------------
 # Agents
