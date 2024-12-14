@@ -32,8 +32,7 @@ from opentelemetry import trace
 # from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 
 # def configure_oltp_tracing(endpoint: str = None) -> trace.TracerProvider:
 #     # Configure Tracing
@@ -79,15 +78,18 @@ def configure_otlp_tracing(endpoint: str = None) -> TracerProvider:
     tracer_provider = TracerProvider(resource=resource)
 
     # Configure the OTLP exporter
-    otlp_exporter = OTLPSpanExporter(
-        # endpoint=endpoint or f"{Langfuse.host}/otel/v1/traces",
-        endpoint=endpoint or f"{langfuse.base_url}/otel/v1/traces",
-        # headers={"Authorization": f"Bearer {langfuse.secret_key}"},
-        headers={"Authorization": f"Bearer {settings.langfuse_secret_key}"},
-    )
+    # otlp_exporter = OTLPSpanExporter(
+    #     # endpoint=endpoint or f"{Langfuse.host}/otel/v1/traces",
+    #     endpoint=endpoint or f"{langfuse.base_url}/otel/v1/traces",
+    #     # headers={"Authorization": f"Bearer {langfuse.secret_key}"},
+    #     headers={"Authorization": f"Bearer {settings.langfuse_secret_key}"},
+    # )
 
     # Add span processor to the tracer provider
-    span_processor = BatchSpanProcessor(otlp_exporter)
+    # span_processor = BatchSpanProcessor(otlp_exporter)
+
+    exporter = ConsoleSpanExporter()
+    span_processor = BatchSpanProcessor(exporter)
     tracer_provider.add_span_processor(span_processor)
 
     # Set the tracer provider globally
