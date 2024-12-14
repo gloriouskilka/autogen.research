@@ -1,6 +1,9 @@
-autogen-agentchat==0.4.0.dev9
-autogen-core==0.4.0.dev9
-autogen-ext==0.4.0.dev9
+autogen-agentchat
+autogen-core
+autogen-ext
 
-pydantic~=2.10.3
-pydantic-settings~=2.6.1
+pydantic
+pydantic-settings
+requests
+pillow
+loguru
