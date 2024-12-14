@@ -233,7 +233,7 @@ async def execute_sql_query(query_name: str, product_name: str) -> Dict[str, Any
 
 
 # Tool to analyze data
-async def analyze_data(data: Dict[str, Any]) -> Dict[str, Any]:
+async def analyze_data(product_name: str, data: Dict[str, Any]) -> Dict[str, Any]:
     analysis_results = {}
 
     # Analyze sales trends
@@ -242,9 +242,11 @@ async def analyze_data(data: Dict[str, Any]) -> Dict[str, Any]:
         quantities = [entry["quantity_sold"] for entry in sales]
         if len(quantities) >= 2:
             if quantities[-1] < quantities[0]:
-                analysis_results["sales_trend"] = "Sales of Yellow Hats have significantly decreased over time."
+                analysis_results["sales_trend"] = f"Sales of {product_name} have significantly decreased over time."
+            elif quantities[-1] > quantities[0]:
+                analysis_results["sales_trend"] = f"Sales of {product_name} have increased over time."
             else:
-                analysis_results["sales_trend"] = "Sales are stable or increasing."
+                analysis_results["sales_trend"] = f"Sales of {product_name} are stable."
         else:
             analysis_results["sales_trend"] = "Not enough data to determine sales trends."
     else:
@@ -257,15 +259,27 @@ async def analyze_data(data: Dict[str, Any]) -> Dict[str, Any]:
         for feedback in feedback_list:
             if any(
                 keyword in feedback["feedback"].lower()
-                for keyword in ["fade", "size", "color", "uncomfortable", "not as pictured"]
+                for keyword in [
+                    "fade",
+                    "size",
+                    "color",
+                    "uncomfortable",
+                    "not as pictured",
+                    "runs too big",
+                    "not",
+                    "too",
+                    "faded",
+                ]
             ):
                 negative_feedback.append(feedback)
         if negative_feedback:
             analysis_results["customer_feedback_analysis"] = (
-                f"Negative feedback indicates issues with product quality: {len(negative_feedback)} instances."
+                f"Negative feedback for {product_name} indicates issues with product quality: {len(negative_feedback)} instances."
             )
         else:
-            analysis_results["customer_feedback_analysis"] = "Customer feedback is generally positive."
+            analysis_results["customer_feedback_analysis"] = (
+                f"Customer feedback for {product_name} is generally positive."
+            )
     else:
         analysis_results["customer_feedback_analysis"] = "Customer feedback data not provided."
 
@@ -275,11 +289,11 @@ async def analyze_data(data: Dict[str, Any]) -> Dict[str, Any]:
 # Wrap tools with FunctionTool
 execute_sql_query_tool = FunctionTool(
     execute_sql_query,
-    description="Execute predefined SQL queries to retrieve sales or customer feedback data.",
+    description="Execute predefined SQL queries to retrieve sales or customer feedback data for a given product.",
 )
 analyze_data_tool = FunctionTool(
     analyze_data,
-    description="Analyze sales and customer feedback data to provide insights.",
+    description="Analyze sales and customer feedback data for a given product to provide insights.",
 )
 
 # ---------------------------
