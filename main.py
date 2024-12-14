@@ -72,8 +72,8 @@ async def init_db():
         await conn.run_sync(metadata.create_all)
 
     async with AsyncSessionLocal() as session:
-        # Sample sales data
-        sample_sales = [
+        # Sample sales data for Yellow Hats
+        yellow_hat_sales = [
             {
                 "product_name": "Yellow Hat",
                 "color": "Yellow",
@@ -103,8 +103,41 @@ async def init_db():
                 "date": datetime.strptime("2023-09-01", "%Y-%m-%d").date(),
             },
         ]
-        # Sample customer feedback data
-        sample_feedback = [
+
+        # Sample sales data for Black Hats
+        black_hat_sales = [
+            {
+                "product_name": "Black Hat",
+                "color": "Black",
+                "size": "Medium",
+                "quantity_sold": 50,
+                "date": datetime.strptime("2023-06-01", "%Y-%m-%d").date(),
+            },
+            {
+                "product_name": "Black Hat",
+                "color": "Black",
+                "size": "Medium",
+                "quantity_sold": 60,
+                "date": datetime.strptime("2023-07-01", "%Y-%m-%d").date(),
+            },
+            {
+                "product_name": "Black Hat",
+                "color": "Black",
+                "size": "Medium",
+                "quantity_sold": 70,
+                "date": datetime.strptime("2023-08-01", "%Y-%m-%d").date(),
+            },
+            {
+                "product_name": "Black Hat",
+                "color": "Black",
+                "size": "Medium",
+                "quantity_sold": 80,
+                "date": datetime.strptime("2023-09-01", "%Y-%m-%d").date(),
+            },
+        ]
+
+        # Sample customer feedback data for Yellow Hats
+        yellow_hat_feedback = [
             {
                 "product_name": "Yellow Hat",
                 "feedback": "The hat fades after washing.",
@@ -127,9 +160,28 @@ async def init_db():
             },
         ]
 
+        # Sample customer feedback data for Black Hats
+        black_hat_feedback = [
+            {
+                "product_name": "Black Hat",
+                "feedback": "Great quality, very comfortable.",
+                "date": datetime.strptime("2023-07-12", "%Y-%m-%d").date(),
+            },
+            {
+                "product_name": "Black Hat",
+                "feedback": "Stylish and fits well.",
+                "date": datetime.strptime("2023-08-15", "%Y-%m-%d").date(),
+            },
+            {
+                "product_name": "Black Hat",
+                "feedback": "Perfect for everyday use.",
+                "date": datetime.strptime("2023-09-08", "%Y-%m-%d").date(),
+            },
+        ]
+
         # Insert data
-        await session.execute(sales_table.insert(), sample_sales)
-        await session.execute(customer_feedback_table.insert(), sample_feedback)
+        await session.execute(sales_table.insert(), yellow_hat_sales + black_hat_sales)
+        await session.execute(customer_feedback_table.insert(), yellow_hat_feedback + black_hat_feedback)
         await session.commit()
 
 
@@ -138,8 +190,13 @@ async def init_db():
 # ---------------------------
 
 
+# ---------------------------
+# Tool Definitions
+# ---------------------------
+
+
 # Tool to execute SQL queries
-async def execute_sql_query(query_name: str) -> Dict[str, Any]:
+async def execute_sql_query(query_name: str, product_name: str) -> Dict[str, Any]:
     async with AsyncSessionLocal() as session:
         if query_name == "get_sales_data":
             stmt = (
@@ -147,7 +204,7 @@ async def execute_sql_query(query_name: str) -> Dict[str, Any]:
                     sales_table.c.date,
                     sales_table.c.quantity_sold,
                 )
-                .where(sales_table.c.product_name == "Yellow Hat")
+                .where(sales_table.c.product_name == product_name)
                 .order_by(sales_table.c.date)
             )
             result = await session.execute(stmt)
@@ -163,7 +220,7 @@ async def execute_sql_query(query_name: str) -> Dict[str, Any]:
                     customer_feedback_table.c.feedback,
                     customer_feedback_table.c.date,
                 )
-                .where(customer_feedback_table.c.product_name == "Yellow Hat")
+                .where(customer_feedback_table.c.product_name == product_name)
                 .order_by(customer_feedback_table.c.date)
             )
             result = await session.execute(stmt)
