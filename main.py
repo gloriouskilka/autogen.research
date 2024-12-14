@@ -171,6 +171,9 @@ async def execute_sql_query(query_name: str) -> Dict[str, Any]:
 
 # Tool to analyze data
 async def analyze_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    if not data:
+        return {"error": "No data provided for analysis."}
+
     # Perform analysis on the data
     analysis_results = {}
     if "sales_trends" in data:
@@ -211,22 +214,20 @@ model_client = OpenAIChatCompletionClient(
     api_key=settings.openai_api_key,
 )
 
-
-# Planner Agent
 planner_agent = AssistantAgent(
     name="PlannerAgent",
     model_client=model_client,
     handoffs=["SQLQueryAgent", "DataAnalysisAgent", "ExplanationAgent"],
-    system_message="""You are the PlannerAgent. Your role is to coordinate the process of analyzing why users have stopped buying large yellow hats.
+    system_message="""You are the PlannerAgent. Your role is to coordinate the process.
 
 - **Step 1**: Ask the SQLQueryAgent to retrieve relevant sales and feedback data.
-- **Step 2**: Pass the retrieved data to the DataAnalysisAgent for analysis.
+- **Step 2**: When you receive data from SQLQueryAgent, include this data in the HandoffMessage content to DataAnalysisAgent.
 - **Step 3**: Request the ExplanationAgent to generate a clear explanation based on the analysis.
-- **Terminate**: Once the explanation is ready, ensure it is delivered to the user.
 
-Always handoff to the appropriate agent after each step by sending a HandoffMessage.
+Always include necessary data in your handoffs.
 """,
 )
+
 
 # SQL Query Agent
 sql_query_agent = AssistantAgent(
@@ -238,13 +239,44 @@ sql_query_agent = AssistantAgent(
 
 - Use the `execute_sql_query` tool to run predefined queries.
 - Available queries: "sales_trends", "user_feedback".
-- Return the data to PlannerAgent in a HandoffMessage after execution.
+- After execution, include the retrieved data in the HandoffMessage content and return it to PlannerAgent.
 
 If you encounter any issues, inform the PlannerAgent.
 """,
 )
+#
+# class DataAnalysisAgent(AssistantAgent):
+#     async def on_messages(self, messages, cancellation_token):
+#         # Extract data from the last message
+#         last_message = messages[-1]
+#         if isinstance(last_message, HandoffMessage) and last_message.source == "PlannerAgent":
+#             data_content = last_message.content
+#             # Assuming the data is included as a string representation of the dictionary
+#             import ast
+#             try:
+#                 data = ast.literal_eval(data_content.replace("Here is the data:", "").strip())
+#             except Exception as e:
+#                 # Handle parsing error
+#                 response = "Error parsing data. Inform PlannerAgent."
+#         else:
+#             # No data received
+#             response = "No data received. Inform PlannerAgent."
+#
+#         # Use the analyze_data tool
+#         if data:
+#             analysis_results = await analyze_data(data)
+#             # Create a HandoffMessage to PlannerAgent with the analysis results
+#             handoff_message = HandoffMessage(
+#                 source="DataAnalysisAgent",
+#                 target="PlannerAgent",
+#                 content=f"Here is the analysis results: {analysis_results}"
+#             )
+#             # Send the HandoffMessage
+#             return HandoffMessage(content=analysis_results, target="PlannerAgent")
+#
 
 # Data Analysis Agent
+# data_analysis_agent = DataAnalysisAgent(
 data_analysis_agent = AssistantAgent(
     name="DataAnalysisAgent",
     model_client=model_client,
@@ -252,6 +284,7 @@ data_analysis_agent = AssistantAgent(
     handoffs=["PlannerAgent"],
     system_message="""You are the DataAnalysisAgent.
 
+- Receive data from the PlannerAgent via HandoffMessage content.
 - Use the `analyze_data` tool to analyze the data provided.
 - Return the analysis results to PlannerAgent in a HandoffMessage.
 
