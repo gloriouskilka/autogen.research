@@ -41,8 +41,19 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 
 @observe
+async def some_func():
+    await asyncio.sleep(1)
+
+
+@observe
 async def main():
-    logger.debug(f"Settings: {settings}")
+
+    await some_func()
+    await some_func()
+    await some_func()
+    await some_func()
+
+    # logger.debug(f"Settings: {settings}")
     # settings
     # tracer_provider = configure_oltp_tracing()
 
