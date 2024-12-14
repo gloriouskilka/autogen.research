@@ -29,90 +29,38 @@ logger.add(
 
 async def get_weather(city: str) -> str:
     """
-    Asynchronously retrieves the current weather information for a specified city.
+    Asynchronously fetches the current weather information for a specified city.
 
-    This function connects to a weather API to fetch the latest weather data for the given city.
-    It processes the response and returns a formatted string containing the temperature and weather condition.
-    The function is designed to be used in environments where non-blocking I/O operations are preferred.
+    Parameters:
+        city (str):
+            - Description: The name of the city to retrieve weather data for.
+            - Requirements:
+                * Must be a non-empty string.
+                * Should correspond to a valid city recognized by the weather API.
+            - Example Values:
+                - "New York"
+                - "Paris"
+                - "Tokyo"
+                - "São Paulo"
 
-    Parameters
-    ----------
-    city : str
-        The name of the city for which to retrieve the weather information.
+    Returns:
+        str:
+            - Description: A formatted string containing the current temperature and weather condition of the specified city.
+            - Format: "The weather in {city} is {temperature} degrees and {condition}."
+            - Example Returns:
+                - "The weather in New York is 22 degrees and sunny."
+                - "The weather in Paris is 18 degrees and cloudy."
 
-        **Requirements:**
-        - Must be a non-empty string.
-        - Should correspond to a valid city recognized by the weather API.
-        - Case-insensitive but typically capitalized (e.g., "New York", "los angeles").
-        - Examples of valid values:
-            - "New York"
-            - "London"
-            - "Tokyo"
-            - "São Paulo"
-            - "Sydney"
-
-    Returns
-    -------
-    str
-        A formatted string detailing the current weather in the specified city.
-
-        **Format:**
-        `"The weather in {city} is {temperature} degrees and {condition}."`
-
-        **Components:**
-        - `{city}`: The input city name.
-        - `{temperature}`: The current temperature in degrees Fahrenheit.
-        - `{condition}`: A brief description of the current weather condition (e.g., "Sunny", "Rainy").
-
-        **Examples of returned values:**
-        - "The weather in New York is 72 degrees and Sunny."
-        - "The weather in London is 58 degrees and Cloudy."
-        - "The weather in Tokyo is 85 degrees and Humid."
-
-    Raises
-    ------
-    ValueError
-        If the `city` parameter is an empty string.
-    aiohttp.ClientError
-        If there is an issue with the network request to the weather API.
-    KeyError
-        If the expected data fields are missing from the API response.
-    Exception
-        For any other unforeseen errors during execution.
-
-    Examples
-    --------
-    Example 1: Valid city input
-    >>> import asyncio
-    >>> asyncio.run(get_weather("New York"))
-    "The weather in New York is 72 degrees and Sunny."
-
-    Example 2: Another valid city input
-    >>> asyncio.run(get_weather("London"))
-    "The weather in London is 58 degrees and Cloudy."
-
-    Example 3: Handling invalid city input
-    >>> asyncio.run(get_weather(""))
-    Traceback (most recent call last):
-        ...
-    ValueError: City name must be a non-empty string.
-
-    Notes
-    -----
-    - This function uses asynchronous HTTP requests to prevent blocking the event loop.
-    - Ensure that the event loop is properly managed when integrating this function into larger applications.
-    - The temperature is assumed to be in degrees Fahrenheit; adjust the API endpoint or processing logic if a different unit is required.
-
-    Security Considerations
-    -----------------------
-    - Ensure that the city names are properly sanitized if they are sourced from user input to prevent injection attacks.
-    - Securely manage API keys or tokens required for accessing the weather service API.
-
-    Dependencies
-    ------------
-    - `aiohttp`: For making asynchronous HTTP requests.
-    - `logging`: For logging information and debugging purposes.
-
+    Raises:
+        ValueError:
+            - Condition: If the 'city' parameter is an empty string.
+            - Message: "City name must be a non-empty string."
+        aiohttp.ClientError:
+            - Condition: If a network-related error occurs during the API request.
+        KeyError:
+            - Condition: If expected data fields are missing in the API response.
+        Exception:
+            - Condition: For any other unforeseen errors during execution.
     """
 
     if not city:
