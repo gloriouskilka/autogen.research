@@ -27,7 +27,7 @@ logger.add(
 # Write a detailed Function description (it should be a Python code with Python documentation abilities used) explaining parameters in detail, write several examples of parameter values, returned values. This description will be used in a very sensitive context, the logic of a function will be regenerated based on description via LLM, so the function description should be very detailed, not to allow LLM to hallucinate.
 
 
-def get_current_weather_information(city: str) -> str:
+async def get_current_weather_information(city: str) -> str:
     """
     Retrieves the current weather information for a specified city using an external weather API.
 
