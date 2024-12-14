@@ -403,9 +403,12 @@ async def main():
     await init_db()
 
     # Define the tasks
+    # tasks = [
+    #     "Investigate why Black Hat is becoming more popular in our shop.",6
+    #     "Investigate why Yellow Hat is not popular in our shop.",
+    # ]
     tasks = [
-        "Investigate why Black Hat is becoming more popular in our shop.",
-        "Investigate why Yellow Hat is not popular in our shop.",
+        "Show the info about Black Hat",
     ]
 
     # Run the tasks sequentially
