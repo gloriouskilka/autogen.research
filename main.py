@@ -18,6 +18,8 @@ from sqlalchemy import select
 
 from autogen_core.tools import FunctionTool
 
+from util import model_client
+
 # ---------------------------
 # Database Setup
 # ---------------------------
@@ -288,11 +290,6 @@ analyze_data_tool = FunctionTool(
 # ---------------------------
 # Agents
 # ---------------------------
-
-model_client = OpenAIChatCompletionClient(
-    model="gpt-4o",
-    api_key=settings.openai_api_key,
-)
 
 # Planner Agent
 planner_agent = AssistantAgent(
