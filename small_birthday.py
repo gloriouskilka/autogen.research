@@ -1,5 +1,7 @@
 import os
 
+import grpc
+
 # from langfuse.openai import openai
 #
 # from openai import OpenAI
@@ -30,6 +32,8 @@ import aiohttp
 from opentelemetry import trace
 
 # from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
@@ -54,48 +58,48 @@ logger.info(f"Langfuse host: {langfuse.base_url}")
 logger.info(f"Langfuse project_id: {langfuse.project_id}")
 
 
-def configure_otlp_tracing(endpoint: str = None) -> TracerProvider:
-    """
-    Configure the OpenTelemetry tracer provider with an OTLP exporter that sends
-    spans to LangFuse.
-
-    Parameters:
-    - endpoint (str, optional): The OTLP endpoint to export spans to. If not provided,
-      the default LangFuse endpoint will be used.
-
-    Returns:
-    - TracerProvider: The configured tracer provider.
-    """
-    # Set up resource attributes
-    resource = Resource(
-        attributes={
-            "service.name": "my-service",
-            "service.version": "1.0.0",
-        }
-    )
-
-    # Create tracer provider with the resource
-    tracer_provider = TracerProvider(resource=resource)
-
-    # Configure the OTLP exporter
-    # otlp_exporter = OTLPSpanExporter(
-    #     # endpoint=endpoint or f"{Langfuse.host}/otel/v1/traces",
-    #     endpoint=endpoint or f"{langfuse.base_url}/otel/v1/traces",
-    #     # headers={"Authorization": f"Bearer {langfuse.secret_key}"},
-    #     headers={"Authorization": f"Bearer {settings.langfuse_secret_key}"},
-    # )
-
-    # Add span processor to the tracer provider
-    # span_processor = BatchSpanProcessor(otlp_exporter)
-
-    exporter = ConsoleSpanExporter()
-    span_processor = BatchSpanProcessor(exporter)
-    tracer_provider.add_span_processor(span_processor)
-
-    # Set the tracer provider globally
-    trace.set_tracer_provider(tracer_provider)
-
-    return tracer_provider
+# def configure_otlp_tracing(endpoint: str = None) -> TracerProvider:
+#     """
+#     Configure the OpenTelemetry tracer provider with an OTLP exporter that sends
+#     spans to LangFuse.
+#
+#     Parameters:
+#     - endpoint (str, optional): The OTLP endpoint to export spans to. If not provided,
+#       the default LangFuse endpoint will be used.
+#
+#     Returns:
+#     - TracerProvider: The configured tracer provider.
+#     """
+#     # Set up resource attributes
+#     resource = Resource(
+#         attributes={
+#             "service.name": "my-service",
+#             "service.version": "1.0.0",
+#         }
+#     )
+#
+#     # Create tracer provider with the resource
+#     tracer_provider = TracerProvider(resource=resource)
+#
+#     # Configure the OTLP exporter
+#     # otlp_exporter = OTLPSpanExporter(
+#     #     # endpoint=endpoint or f"{Langfuse.host}/otel/v1/traces",
+#     #     endpoint=endpoint or f"{langfuse.base_url}/otel/v1/traces",
+#     #     # headers={"Authorization": f"Bearer {langfuse.secret_key}"},
+#     #     headers={"Authorization": f"Bearer {settings.langfuse_secret_key}"},
+#     # )
+#
+#     # Add span processor to the tracer provider
+#     # span_processor = BatchSpanProcessor(otlp_exporter)
+#
+#     exporter = ConsoleSpanExporter()
+#     span_processor = BatchSpanProcessor(exporter)
+#     tracer_provider.add_span_processor(span_processor)
+#
+#     # Set the tracer provider globally
+#     trace.set_tracer_provider(tracer_provider)
+#
+#     return tracer_provider
 
 
 # Prompt used:
@@ -134,18 +138,60 @@ def configure_otlp_tracing(endpoint: str = None) -> TracerProvider:
 # from openai import OpenAI
 
 
+def configure_otlp_tracing(endpoint: str = None) -> TracerProvider:
+    """
+    Configure the OpenTelemetry tracer provider with an OTLP gRPC exporter that sends
+    spans to LangFuse.
+
+    Parameters:
+    - endpoint (str, optional): The OTLP endpoint to export spans to. If not provided,
+      the default LangFuse gRPC endpoint will be used.
+
+    Returns:
+    - TracerProvider: The configured tracer provider.
+    """
+    # Set up resource attributes
+    resource = Resource(
+        attributes={
+            "service.name": "my-service",
+            "service.version": "1.0.0",
+        }
+    )
+
+    # Create tracer provider with the resource
+    tracer_provider = TracerProvider(resource=resource)
+
+    # Configure the OTLP gRPC exporter
+    # otlp_exporter = OTLPSpanExporter(
+    #     endpoint=endpoint or f"{langfuse.base_url}/otel/v1/traces",
+    #     credentials=grpc.ssl_channel_credentials(),
+    #     headers=[("Authorization", f"Bearer {settings.langfuse_secret_key}")],
+    # )
+    otlp_exporter = OTLPSpanExporter(
+        endpoint=endpoint or f"{langfuse.base_url}/otel/v1/traces",
+        credentials=grpc.ssl_channel_credentials(),
+        headers=[("authorization", f"Bearer {settings.langfuse_secret_key}")],
+    )
+
+    # Add span processor to the tracer provider
+    span_processor = BatchSpanProcessor(otlp_exporter)
+    tracer_provider.add_span_processor(span_processor)
+
+    # Set the tracer provider globally
+    trace.set_tracer_provider(tracer_provider)
+
+    return tracer_provider
+
+
+@observe
+def test_function():
+    with trace.get_tracer(__name__).start_as_current_span("test-span") as span:
+        logger.debug("This is a test span.")
+
+
 @observe
 async def main():
-    # await some_func()
-    # await some_func()
-    # await some_func()
-    # await some_func()
-    #
-    # logger.debug(f"Settings: {settings}")
-    # settings
     tracer_provider = configure_otlp_tracing()
-
-    # +Copy-paste
     runtime = SingleThreadedAgentRuntime(tracer_provider=tracer_provider)
 
     # Configure loguru
@@ -178,18 +224,6 @@ async def main():
     await Console(
         team.run_stream(task=HandoffMessage(source="user", target="Alice", content="Bob's birthday is on 1st January."))
     )
-
-    # # Define a termination condition.
-    # text_termination = TextMentionTermination("TERMINATE")
-    # logger.info("Termination condition defined.")
-    #
-    # # Create a single-agent team.
-    # # single_agent_team = RoundRobinGroupChat([weather_agent], termination_condition=text_termination)
-    # logger.info("Single-agent team created.")
-    #
-    # logger.info("Starting team run.")
-    # # result = await single_agent_team.run(task="What is the weather in New York?")
-    # logger.info(f"Team run completed with result: {result}")
 
 
 # If you're running this script directly, you can use asyncio to run the async function
