@@ -19,18 +19,6 @@ from sqlalchemy import select
 from autogen_core.tools import FunctionTool
 
 # ---------------------------
-# Settings and Configuration
-# ---------------------------
-
-
-class Settings(BaseSettings):
-    openai_api_key: str = None
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
-
-
-settings = Settings()
-
-# ---------------------------
 # Database Setup
 # ---------------------------
 
