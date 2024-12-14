@@ -44,19 +44,60 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 #
 #     return tracer_provider
 
+langfuse = Langfuse(
+    secret_key=settings.langfuse_secret_key,
+    public_key=settings.langfuse_public_key,
+    host=settings.langfuse_host,
+)
+
+
+def configure_otlp_tracing(endpoint: str = None) -> TracerProvider:
+    """
+    Configure the OpenTelemetry tracer provider with an OTLP exporter that sends
+    spans to LangFuse.
+
+    Parameters:
+    - endpoint (str, optional): The OTLP endpoint to export spans to. If not provided,
+      the default LangFuse endpoint will be used.
+
+    Returns:
+    - TracerProvider: The configured tracer provider.
+    """
+    # Set up resource attributes
+    resource = Resource(
+        attributes={
+            "service.name": "my-service",
+            "service.version": "1.0.0",
+        }
+    )
+
+    # Create tracer provider with the resource
+    tracer_provider = TracerProvider(resource=resource)
+
+    # Configure the OTLP exporter
+    otlp_exporter = OTLPSpanExporter(
+        endpoint=endpoint or f"{Langfuse.host}/otel/v1/traces",
+        # endpoint=endpoint or f"{langfuse.host}/otel/v1/traces",
+        # headers={"Authorization": f"Bearer {langfuse.secret_key}"},
+        headers={"Authorization": f"Bearer {settings.langfuse_secret_key}"},
+    )
+
+    # Add span processor to the tracer provider
+    span_processor = BatchSpanProcessor(otlp_exporter)
+    tracer_provider.add_span_processor(span_processor)
+
+    # Set the tracer provider globally
+    trace.set_tracer_provider(tracer_provider)
+
+    return tracer_provider
+
 
 # Prompt used:
 # Write a detailed Function description (it should be a Python code with Python documentation abilities used) explaining parameters in detail, write several examples of parameter values, returned values. This description will be used in a very sensitive context, the logic of a function will be regenerated based on description via LLM, so the function description should be very detailed, not to allow LLM to hallucinate. Limit the description length to 800 symbols, renamed function to have a longer name if needed. No need to focus on async/not async Python implementation details, only focus on input parameters and output.
 
 
-langfuse = Langfuse(
-    secret_key="sk-lf-cf3281dd-c39f-417b-b9be-dbb9aed3ed25",
-    public_key="pk-lf-ca9dfb85-f21b-4e94-a162-97802f63bf59",
-    host="https://cloud.langfuse.com",
-)
-
 # WORKS
-langfuse.trace(id="123", name="test", metadata={"foo": "bar"})
+# langfuse.trace(id="123", name="test", metadata={"foo": "bar"})
 
 # langfuse.create_dataset_item(
 #     dataset_name="capital_cities",
@@ -96,10 +137,10 @@ async def main():
     #
     # logger.debug(f"Settings: {settings}")
     # settings
-    # tracer_provider = configure_oltp_tracing()
+    tracer_provider = configure_otlp_tracing()
 
     # +Copy-paste
-    # runtime = SingleThreadedAgentRuntime(tracer_provider=tracer_provider)
+    runtime = SingleThreadedAgentRuntime(tracer_provider=tracer_provider)
 
     # Configure loguru
     logger.remove()  # Remove default handler
@@ -121,7 +162,7 @@ async def main():
     termination = HandoffTermination(target="user") | MaxMessageTermination(3)
     team = Swarm([agent], termination_condition=termination)
 
-    # team._runtime = runtime
+    team._runtime = runtime
     # runtime.start()
 
     # Start the conversation.
