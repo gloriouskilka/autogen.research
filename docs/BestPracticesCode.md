@@ -1,42 +1,43 @@
 Below are concise, essential rules and best practices for using the Autogen framework, followed by two fully working example applications demonstrating both LLM-based (nondeterministic) agents and deterministic agents, as well as key Autogen features.
 
-Core Principles
-Agents:
+## Core Principles
 
-Agents process messages (tasks) and generate responses.
-Each AssistantAgent uses an LLM or is implemented deterministically.
-Agents can have tools: Python callables providing external capabilities (e.g. get_weather).
-Teams & Workflows:
+### Agents:
+- Agents process messages (tasks) and generate responses.
+- Each `AssistantAgent` uses an LLM or is implemented deterministically.
+- Agents can have tools: Python callables providing external capabilities (e.g. `get_weather`).
 
-RoundRobinGroupChat, SelectorGroupChat, Swarm: group agents together.
-Teams route messages among agents based on turn order, selector functions, or handoffs.
-Messages:
+### Teams & Workflows:
+- `RoundRobinGroupChat`, `SelectorGroupChat`, `Swarm`: group agents together.
+- Teams route messages among agents based on turn order, selector functions, or handoffs.
 
-TextMessage, HandoffMessage, MultiModalMessage: structured communication primitives.
-Agents read all previous messages before responding.
-Termination Conditions:
+### Messages:
+- `TextMessage`, `HandoffMessage`, `MultiModalMessage`: structured communication primitives.
+- Agents read all previous messages before responding.
 
-TextMentionTermination, MaxMessageTermination, HandoffTermination: stop conditions.
-Combine conditions with | (OR) or & (AND).
-State & Persistence:
+### Termination Conditions:
+- `TextMentionTermination`, `MaxMessageTermination`, `HandoffTermination`: stop conditions.
+- Combine conditions with `|` (OR) or `&` (AND).
 
-Agents and teams can be saved and reloaded (save_state, load_state).
-Tools & Function Calls:
+### State & Persistence:
+- Agents and teams can be saved and reloaded (`save_state`, `load_state`).
 
-Define Python functions as tools to provide capabilities beyond the LLM.
-Invoke them directly in code or via special tool messages.
-LLM vs Deterministic Agents:
+### Tools & Function Calls:
+- Define Python functions as tools to provide capabilities beyond the LLM.
+- Invoke them directly in code or via special tool messages.
 
-LLM-backed: uses OpenAIChatCompletionClient or similar.
-Deterministic: returns hardcoded or computed answers without calling the LLM.
-Best Practices:
+### LLM vs Deterministic Agents:
+- LLM-backed: uses `OpenAIChatCompletionClient` or similar.
+- Deterministic: returns hardcoded or computed answers without calling the LLM.
 
-Keep system messages minimal and explicit.
-Chain agents logically and manage tools carefully.
-Use termination conditions to avoid infinite loops.
-Save and restore state for reproducible workflows.
-Use Console streaming for debugging; remove it in production code.
-Example 1: LLM-Based Multi-Agent Workflow
+## Best Practices:
+- Keep system messages minimal and explicit.
+- Chain agents logically and manage tools carefully.
+- Use termination conditions to avoid infinite loops.
+- Save and restore state for reproducible workflows.
+- Use `Console` streaming for debugging; remove it in production code.
+
+## Example 1: LLM-Based Multi-Agent Workflow
 
 ```python
 import asyncio
@@ -112,56 +113,64 @@ These examples show key Autogen concepts—LLM integration, termination conditio
 
 
 
-
-
 [//]: # (Вы сказали:)
 I don't see that you've managed to demonstrate all features of Autogen, foe example, handoff. Fix it. I need a proper technical cheatsheet for Python developer who never used Autogen
 ChatGPT
 
 Below is a concise technical cheat sheet for a Python developer new to Autogen, followed by three updated, fully working example applications. The examples demonstrate multiple features, including LLM-based agents, deterministic agents, tools, state saving/loading, handoffs, multiple team types, termination conditions, and message routing.
 
-Autogen Technical Cheatsheet
-Core Concepts:
+## Autogen Technical Cheatsheet
 
-Agents: Classes that process messages and produce responses.
-AssistantAgent uses LLMs or can be deterministic.
-Provide system_message to guide agent behavior.
-Agents have tools (Python callables) to perform non-LLM tasks.
-Messages:
-TextMessage: Basic text.
-HandoffMessage: Transfer conversation control between agents/users.
-MultiModalMessage: Includes text and images.
-Teams & Execution:
-Teams: RoundRobinGroupChat, SelectorGroupChat, Swarm.
-run(task=...) returns final TaskResult after completion.
-run_stream(task=...) yields messages as they are generated.
-Termination Conditions:
-TextMentionTermination("TERMINATE"): stops if message contains "TERMINATE".
-MaxMessageTermination(n): stops after n messages.
-HandoffTermination(target="user"): stops after handoff to user.
-Combine with | (OR) / & (AND).
-Tools:
-Python functions passed to agents in tools=[...].
-Agents can call these directly from code or inline in responses.
-Handoffs:
-Agents can send HandoffMessage to another agent or user.
-Useful in Swarm or multi-step workflows.
-State Persistence:
-save_state() and load_state() store and restore agent/team state.
-Best Practices:
+### Core Concepts
 
-Keep system_message minimal and explicit.
-Chain agents logically and clearly.
-Use termination conditions to prevent infinite loops.
-Use Console() for debugging, remove in production.
-Validate tools and handle errors gracefully.
-Example 1: LLM-Based Multi-Agent with Termination & Tools
+**Agents**: Classes that process messages and produce responses.
+- `AssistantAgent` uses LLMs or can be deterministic.
+- Provide `system_message` to guide agent behavior.
+- Agents have tools (Python callables) to perform non-LLM tasks.
+
+**Messages**:
+- `TextMessage`: Basic text.
+- `HandoffMessage`: Transfer conversation control between agents/users.
+- `MultiModalMessage`: Includes text and images.
+
+**Teams & Execution**:
+- Teams: `RoundRobinGroupChat`, `SelectorGroupChat`, `Swarm`.
+- `run(task=...)` returns final `TaskResult` after completion.
+- `run_stream(task=...)` yields messages as they are generated.
+
+**Termination Conditions**:
+- `TextMentionTermination("TERMINATE")`: stops if message contains "TERMINATE".
+- `MaxMessageTermination(n)`: stops after n messages.
+- `HandoffTermination(target="user")`: stops after handoff to user.
+- Combine with `|` (OR) / `&` (AND).
+
+**Tools**:
+- Python functions passed to agents in `tools=[...]`.
+- Agents can call these directly from code or inline in responses.
+
+**Handoffs**:
+- Agents can send `HandoffMessage` to another agent or user.
+- Useful in `Swarm` or multi-step workflows.
+
+**State Persistence**:
+- `save_state()` and `load_state()` store and restore agent/team state.
+
+### Best Practices
+
+- Keep `system_message` minimal and explicit.
+- Chain agents logically and clearly.
+- Use termination conditions to prevent infinite loops.
+- Use `Console()` for debugging, remove in production.
+- Validate tools and handle errors gracefully.
+
+### Example 1: LLM-Based Multi-Agent with Termination & Tools
+
 Demonstrates:
+- LLM-backed agents (`AssistantAgent` with `OpenAIChatCompletionClient`)
+- Tools (`get_weather`)
+- Termination condition (`TextMentionTermination`)
+- `RoundRobinGroupChat`
 
-LLM-backed agents (AssistantAgent with OpenAIChatCompletionClient)
-Tools (get_weather)
-Termination condition (TextMentionTermination)
-RoundRobinGroupChat
 
 ```python
 import asyncio
@@ -198,12 +207,13 @@ async def run_example_1():
 asyncio.run(run_example_1())
 ```
 
-Example 2: Deterministic Agent & State Persistence
-Demonstrates:
+## Example 2: Deterministic Agent & State Persistence
 
-Deterministic agent (BaseChatAgent without LLM)
-State saving and loading (save_state, load_state)
-RoundRobinGroupChat with MaxMessageTermination
+### Demonstrates:
+- Deterministic agent (`BaseChatAgent` without LLM)
+- State saving and loading (`save_state`, `load_state`)
+- `RoundRobinGroupChat` with `MaxMessageTermination`
+
 ```python
 import asyncio
 from typing import Sequence
@@ -250,12 +260,14 @@ async def run_example_2():
 asyncio.run(run_example_2())
 ```
 
-Example 3: Handoff with Swarm Team
-Demonstrates:
+## Example 3: Handoff with Swarm Team
 
-Swarm team workflow
-HandoffMessage and HandoffTermination
-Multiple agents delegating tasks
+### Demonstrates:
+- Swarm team workflow
+- HandoffMessage and HandoffTermination
+- Multiple agents delegating tasks
+
+
 ```python
 import asyncio
 from autogen_agentchat.agents import AssistantAgent
@@ -298,28 +310,18 @@ async def run_example_3():
 asyncio.run(run_example_3())
 ```
 
-These three examples cover the usage of LLM and deterministic agents, tools, termination conditions, message routing, handoff logic, saving/loading state, and different team orchestrations.
+Below are three advanced code examples demonstrating complex agent systems and the use of `RoundRobinGroupChat`, `SelectorGroupChat`, and `Swarm`. Each scenario uses multiple agents, tools, handoffs, termination conditions, state handling, and both LLM-based and deterministic agents.
 
+## Example 1: RoundRobinGroupChat
 
+**Agents**: Data collector, Data analyst, Reporter
 
+**Features**:
+- LLM-based (`OpenAIChatCompletionClient`) and deterministic agents
+- Tools (`get_stock_data`, `get_news`)
+- Termination conditions (`TextMentionTermination`)
+- Saving/Loading state
 
-
-
-Вы сказали:
-RoundRobinGroupChat, SelectorGroupChat, Swarm - все продемонстрируй в коде. Пиши более сложные агентские системы
-ChatGPT
-
-Думал для пара секунд
-Below are three advanced code examples demonstrating complex agent systems and the use of RoundRobinGroupChat, SelectorGroupChat, and Swarm. Each scenario uses multiple agents, tools, handoffs, termination conditions, state handling, and both LLM-based and deterministic agents.
-
-Example 1: RoundRobinGroupChat
-Agents: Data collector, Data analyst, Reporter
-Features:
-
-LLM-based (OpenAIChatCompletionClient) and deterministic agents
-Tools (get_stock_data, get_news)
-Termination conditions (TextMentionTermination)
-Saving/Loading state
 ```python
 import asyncio
 from typing import Any, Dict, List
@@ -388,13 +390,14 @@ async def run_round_robin_example():
 asyncio.run(run_round_robin_example())
 ```
 
-Example 2: SelectorGroupChat
-Agents: Planner, WebSearchAgent, ArxivSearchAgent, Reporter
-Features:
+## Example 2: SelectorGroupChat
 
-SelectorGroupChat with a custom selector_func that always routes control back to planner after each agent
-Tools (google_search, arxiv_search)
-Termination (TextMentionTermination)
+**Agents**: Planner, WebSearchAgent, ArxivSearchAgent, Reporter
+
+**Features**:
+- SelectorGroupChat with a custom `selector_func` that always routes control back to planner after each agent
+- Tools (`google_search`, `arxiv_search`)
+- Termination (`TextMentionTermination`)
 
 ```python
 import asyncio
@@ -464,15 +467,16 @@ async def run_selector_example():
 asyncio.run(run_selector_example())
 ```
 
-Example 3: Swarm with Handoffs
-Agents: TravelAgent, LocalAgent, LanguageAgent, TravelSummaryAgent
-Features:
+## Example 3: Swarm with Handoffs
 
-Swarm for flexible message passing
-Tools (get_local_activities)
-Handoff with HandoffMessage
-Termination (HandoffTermination, TextMentionTermination)
-LLM-based and multiple steps
+**Agents**: TravelAgent, LocalAgent, LanguageAgent, TravelSummaryAgent
+
+**Features**:
+- Swarm for flexible message passing
+- Tools (`get_local_activities`)
+- Handoff with `HandoffMessage`
+- Termination (`HandoffTermination`, `TextMentionTermination`)
+- LLM-based and multiple steps
 
 ```python
 import asyncio
