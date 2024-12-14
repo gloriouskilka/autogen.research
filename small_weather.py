@@ -1,3 +1,5 @@
+import os
+
 from autogen_core import SingleThreadedAgentRuntime
 from loguru import logger
 import sys
@@ -91,7 +93,47 @@ async def get_current_weather_information(city: str) -> str:
 
 async def main():
     tracer_provider = configure_oltp_tracing()
-    single_threaded_runtime = SingleThreadedAgentRuntime(tracer_provider=tracer_provider)
+
+    # +Copy-paste
+    # runtime = SingleThreadedAgentRuntime()
+    runtime = SingleThreadedAgentRuntime(tracer_provider=tracer_provider)
+
+    # Create an appropriate client
+    # client = create_completion_client_from_env()
+
+    # # Register agents.
+    # await MultimodalWebSurfer.register(
+    #     runtime,
+    #     "WebSurfer",
+    #     lambda: MultimodalWebSurfer(),
+    # )
+    # web_surfer = AgentProxy(AgentId("WebSurfer", "default"), runtime)
+    #
+    # await UserProxy.register(
+    #     runtime,
+    #     "UserProxy",
+    #     lambda: UserProxy(),
+    # )
+    # user_proxy = AgentProxy(AgentId("UserProxy", "default"), runtime)
+    # await RoundRobinOrchestrator.register(
+    #     runtime, "orchestrator", lambda: RoundRobinOrchestrator([web_surfer, user_proxy])
+    # )
+
+    # actual_surfer = await runtime.try_get_underlying_agent_instance(web_surfer.id, MultimodalWebSurfer)
+    # await actual_surfer.init(
+    #     model_client=client, downloads_folder=os.getcwd(), browser_channel="chromium", debug_dir=DEBUG_DIR
+    # )
+    #
+    # await runtime.send_message(
+    #     BroadcastMessage(
+    #         content=UserMessage(
+    #             content="Please visit the page 'https://en.wikipedia.org/wiki/Microsoft'", source="user"
+    #         )
+    #     ),
+    #     recipient=web_surfer.id,
+    #     sender=user_proxy.id,
+    # )
+    # -Copy-paste
 
     # Configure loguru
     logger.remove()  # Remove default handler
@@ -113,16 +155,18 @@ async def main():
     )
     logger.info("Assistant agent created.")
 
+    runtime.start()
+
     # Define a termination condition.
     text_termination = TextMentionTermination("TERMINATE")
     logger.info("Termination condition defined.")
 
     # Create a single-agent team.
-    single_agent_team = RoundRobinGroupChat([weather_agent], termination_condition=text_termination)
+    # single_agent_team = RoundRobinGroupChat([weather_agent], termination_condition=text_termination)
     logger.info("Single-agent team created.")
 
     logger.info("Starting team run.")
-    result = await single_agent_team.run(task="What is the weather in New York?")
+    # result = await single_agent_team.run(task="What is the weather in New York?")
     logger.info(f"Team run completed with result: {result}")
 
 
