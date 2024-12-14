@@ -24,7 +24,7 @@ logger.add(
 
 
 # Prompt used:
-# Write a detailed Function description (it should be a Python code with Python documentation abilities used) explaining parameters in detail, write several examples of parameter values, returned values. This description will be used in a very sensitive context, the logic of a function will be regenerated based on description via LLM, so the function description should be very detailed, not to allow LLM to hallucinate.
+# Write a detailed Function description (it should be a Python code with Python documentation abilities used) explaining parameters in detail, write several examples of parameter values, returned values. This description will be used in a very sensitive context, the logic of a function will be regenerated based on description via LLM, so the function description should be very detailed, not to allow LLM to hallucinate. Limit the description length to 800 symbols, renamed function to have a longer name if needed. No need to focus on async/not async Python implementation details, only focus on input parameters and output.
 
 
 async def get_current_weather_information(city: str) -> str:
@@ -43,16 +43,6 @@ async def get_current_weather_information(city: str) -> str:
              - "The weather in London is 15 degrees and rainy."
              - "The weather in San Francisco is 22 degrees and sunny."
              - "The weather in Tokyo is 18 degrees and cloudy."
-
-    Raises:
-    ValueError: If the `city` parameter is empty or not provided.
-    Exception: For any network issues, API errors, or unexpected problems during data retrieval.
-
-    Notes:
-    - The function interacts with an external API endpoint:
-      "https://api.weatherprovider.com/v1/current".
-    - An API key is required for authentication (replace 'YOUR_API_KEY' with a valid key).
-    - Ensure proper error handling when integrating this function into applications.
 
     Examples:
     >>> get_current_weather_information("Berlin")
