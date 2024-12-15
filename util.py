@@ -13,7 +13,7 @@ from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from pydantic import Field
+from pydantic import Field, BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from tracing import LangFuseExporter
@@ -67,9 +67,6 @@ class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
     async def create(self, *args, **kwargs):
         result_coroutine = super().create(*args, **kwargs)
 
-        # res = await result_coroutine
-        # return res
-
         # Define a wrapper coroutine
         async def wrapper():
             result = await result_coroutine
@@ -97,6 +94,12 @@ class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
 
         # Return the wrapper coroutine
         return await wrapper()
+
+
+class QNA(BaseModel):
+    query: str
+    name: str
+    arguments: dict
 
 
 model_client = OpenAIChatCompletionClientWrapper(

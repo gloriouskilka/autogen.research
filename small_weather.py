@@ -121,11 +121,6 @@ async def main():
 
     weather_agent._runtime = runtime
 
-    class QNA(BaseModel):
-        query: str
-        name: str
-        arguments: dict
-
     # Written as dict (Will be generated):
     test_cases = [
         {
