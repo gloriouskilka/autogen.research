@@ -3,6 +3,7 @@ from typing import List
 
 from autogen_core import SingleThreadedAgentRuntime, FunctionCall
 from autogen_core.models import CreateResult
+from autogen_core.tools import Tool
 from langfuse import Langfuse
 from loguru import logger
 import sys
@@ -75,6 +76,55 @@ async def get_current_weather_information(city: str) -> str:
         raise
 
 
+async def get_test_cases_for_function(function_name: str, function_description: str, count: int = 3) -> List[QNA]:
+    """
+    Generates test cases for a given function based on its description.
+
+    Parameters:
+    function (Tool): The function for which to generate test cases.
+                     - Must be a callable function.
+                     - The function description should be detailed and follow the specified format.
+
+    Returns:
+    List[QNA]: A list of test cases in the form of QNA objects.
+               - Each test case contains a query, function name, and arguments.
+               - Example test case:
+                   QNA(query="What is the weather in London?", name="get_current_weather_information", arguments={"city": "London"})
+    """
+    # Extract the function description
+    if not function_description:
+        raise ValueError("Function description is missing.")
+
+    # Parse the description to extract parameter details
+    # This is a simplified parsing logic and may need to be adjusted based on the description format
+    parameters = []
+    for line in function_description.split("\n"):
+        line = line.strip()
+        if line.startswith("Parameters:"):
+            parsing_params = True
+        elif line.startswith("Returns:"):
+            parsing_params = False
+        elif line.startswith("Examples:"):
+            break
+        elif line.startswith("-"):
+            if parsing_params:
+                parameter = line[1:].strip()
+                parameters.append(parameter)
+
+    # Generate test cases based on parameter examples
+    test_cases = []
+    for param in parameters:
+        if "Example values:" in param:
+            example_values = param.split(":")[1].strip()
+            for example in example_values.split(","):
+                example = example.strip()
+                test_cases.append(
+                    QNA(query=f"What is the weather in {example}?", name=function_name, arguments={"city": example})
+                )
+
+    return test_cases
+
+
 async def main():
     langfuse = Langfuse(
         secret_key=settings.langfuse_secret_key,
@@ -122,18 +172,27 @@ async def main():
     weather_agent._runtime = runtime
 
     # Written as dict (Will be generated):
-    test_cases = [
-        {
-            "query": "What is the weather in New York?",
-            "name": "get_current_weather_information",
-            "arguments": {"city": "New York"},
-        },
-        {
-            "query": "What is the weather in London?",
-            "name": "get_current_weather_information",
-            "arguments": {"city": "London"},
-        },
-    ]
+    # test_cases = [
+    #     {
+    #         "query": "What is the weather in New York?",
+    #         "name": "get_current_weather_information",
+    #         "arguments": {"city": "New York"},
+    #     },
+    #     {
+    #         "query": "What is the weather in London?",
+    #         "name": "get_current_weather_information",
+    #         "arguments": {"city": "London"},
+    #     },
+    # ]
+
+    # Better, to have an Agent with a function that can come up with test cases based on the function's description
+
+    function_cases_agent = AssistantAgent(
+        "function_cases_agent",
+        model_client=model_client,
+        tools=[get_test_cases_for_function],
+        system_message="Respond 'TERMINATE' when task is complete.",
+    )
 
     state = await weather_agent.save_state()
     for test_case in (QNA(**t) for t in test_cases):
