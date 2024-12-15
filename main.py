@@ -426,9 +426,9 @@ async def main():
 
     # Run the tasks sequentially
     for task in tasks:
-        print(f"--- Starting task: {task} ---\n")
+        logger.debug(f"--- Starting task: {task} ---\n")
         await Console(team.run_stream(task=task))
-        print(f"\n--- Completed task: {task} ---\n")
+        logger.debug(f"\n--- Completed task: {task} ---\n")
         await team.reset()  # Reset the team state before each task
 
 
