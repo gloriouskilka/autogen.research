@@ -12,7 +12,7 @@ from autogen_agentchat.conditions import TextMentionTermination
 from autogen_agentchat.teams import RoundRobinGroupChat
 from pydantic import BaseModel
 
-from util import model_client, settings, configure_tracing, OpenAIChatCompletionClientWrapper
+from util import model_client, settings, configure_tracing, OpenAIChatCompletionClientWrapper, QNA
 
 import aiohttp
 
