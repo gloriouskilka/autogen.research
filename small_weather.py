@@ -1,3 +1,4 @@
+import ast
 import json
 from typing import List
 
@@ -182,10 +183,7 @@ async def main():
         task=f"Generate test cases, function_name: get_current_weather_information, function_description: {get_current_weather_information.__doc__}"
     )
 
-    last_message_content = res.messages[-1].content
-    test_cases_dicts = json.loads(last_message_content)
-
-    i = 100
+    test_cases_dicts = ast.literal_eval(res.messages[-1].content)
     test_cases = [QNA(**t) for t in test_cases_dicts]
 
     state = await weather_agent.save_state()
