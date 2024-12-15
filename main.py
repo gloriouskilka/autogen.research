@@ -368,20 +368,6 @@ You are the ExplanationAgent.
 termination_condition = TextMentionTermination("TERMINATE")
 
 # ---------------------------
-# Team Setup (Swarm)
-# ---------------------------
-
-team = Swarm(
-    participants=[
-        planner_agent,
-        sql_query_agent,
-        data_analysis_agent,
-        explanation_agent,
-    ],
-    termination_condition=termination_condition,
-)
-
-# ---------------------------
 # Execution
 # ---------------------------
 
@@ -421,6 +407,20 @@ async def main():
     tasks = [
         "Show the info about Black Hat",
     ]
+
+    # ---------------------------
+    # Team Setup (Swarm)
+    # ---------------------------
+
+    team = Swarm(
+        participants=[
+            planner_agent,
+            sql_query_agent,
+            data_analysis_agent,
+            explanation_agent,
+        ],
+        termination_condition=termination_condition,
+    )
 
     team._runtime = runtime
 
