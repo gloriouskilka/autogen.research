@@ -166,14 +166,18 @@ async def main():
         "function_cases_agent",
         model_client=model_client,
         tools=[get_test_cases_for_function],
-        system_message=f"You're a professional test cases generator with IQ 140. Generate test cases for the function, each test case must conform the format: {QNA.model_json_schema()}",
+        system_message=f"You're a professional test cases generator with IQ 140. Generate test cases for the function, each test case dictionary must contain 'query', 'name', 'arguments'.",
     )
 
     res = await function_cases_agent.run(
         task=f"Generate test cases, function_name: get_current_weather_information, function_description: {get_current_weather_information.__doc__}"
     )
+
+    last_message_content = res.messages[-1].content
+    test_cases_dicts = json.loads(last_message_content)
+
     i = 100
-    test_cases = [QNA(**t) for t in res["test_cases"]]
+    test_cases = [QNA(**t) for t in test_cases_dicts]
 
     state = await weather_agent.save_state()
     for test_case in (QNA(**t) for t in test_cases):
