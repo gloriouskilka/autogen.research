@@ -76,7 +76,9 @@ async def get_current_weather_information(city: str) -> str:
         raise
 
 
-async def get_test_cases_for_function(function_name: str, function_description: str, count: int = 3) -> List[QNA]:
+async def get_test_cases_for_function(
+    function_name: str, function_description: str, test_cases: List[QNA], count: int = 3
+) -> List[QNA]:
     """
     Generates test cases for a given function based on its description.
 
@@ -94,33 +96,6 @@ async def get_test_cases_for_function(function_name: str, function_description: 
     # Extract the function description
     if not function_description:
         raise ValueError("Function description is missing.")
-
-    # Parse the description to extract parameter details
-    # This is a simplified parsing logic and may need to be adjusted based on the description format
-    parameters = []
-    for line in function_description.split("\n"):
-        line = line.strip()
-        if line.startswith("Parameters:"):
-            parsing_params = True
-        elif line.startswith("Returns:"):
-            parsing_params = False
-        elif line.startswith("Examples:"):
-            break
-        elif line.startswith("-"):
-            if parsing_params:
-                parameter = line[1:].strip()
-                parameters.append(parameter)
-
-    # Generate test cases based on parameter examples
-    test_cases = []
-    for param in parameters:
-        if "Example values:" in param:
-            example_values = param.split(":")[1].strip()
-            for example in example_values.split(","):
-                example = example.strip()
-                test_cases.append(
-                    QNA(query=f"What is the weather in {example}?", name=function_name, arguments={"city": example})
-                )
 
     return test_cases
 
@@ -191,8 +166,14 @@ async def main():
         "function_cases_agent",
         model_client=model_client,
         tools=[get_test_cases_for_function],
-        system_message="Respond 'TERMINATE' when task is complete.",
+        system_message=f"You're a professional test cases generator with IQ 140. Generate test cases for the function, each test case must conform the format: {QNA.model_json_schema()}",
     )
+
+    res = await function_cases_agent.run(
+        task=f"Generate test cases, function_name: get_current_weather_information, function_description: {get_current_weather_information.__doc__}"
+    )
+    i = 100
+    test_cases = [QNA(**t) for t in res["test_cases"]]
 
     state = await weather_agent.save_state()
     for test_case in (QNA(**t) for t in test_cases):
