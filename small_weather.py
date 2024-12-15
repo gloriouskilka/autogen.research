@@ -164,7 +164,7 @@ async def main():
         task=f"Generate 10 test cases, function_name: get_current_weather_information, function_description: {get_current_weather_information.__doc__}"
     )
 
-    model_client.set_throw_on_create(True)
+    # model_client.set_throw_on_create(True)
 
     test_cases_dicts = ast.literal_eval(res.messages[-1].content)
     test_cases = [QNA(**t) for t in test_cases_dicts]
