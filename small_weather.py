@@ -95,7 +95,7 @@ async def main():
         "<level>{level: <8}</level> | "
         "<cyan>{module}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
         "<level>{message}</level>",
-        level="INFO",
+        level="DEBUG",
     )
 
     # Create an assistant agent.

@@ -7,6 +7,7 @@ from autogen_core.models import CreateResult
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from dotenv import load_dotenv
 from langfuse import Langfuse
+from loguru import logger
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
@@ -92,6 +93,7 @@ class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
         self.create_results.append(result)
 
         if self.throw_on_create:
+            logger.debug(f"Intercepted create call: {result}")
             assert isinstance(result, CreateResult)
 
             if self.expect_function_call:
