@@ -150,9 +150,12 @@ async def main():
         ),
     ]
 
+    state = await weather_agent.save_state()
     for test_case in test_cases:
         try:
             logger.info(f"Running assistant agent with query: {test_case.query}")
+            await weather_agent.load_state(state)
+
             result = await weather_agent.run(task=test_case.query)
             logger.info(f"Agent run completed with result: {result}")
 
@@ -165,6 +168,9 @@ async def main():
             logger.info(f"Function called correctly: {e.name} with arguments: {e.arguments}")
         except Exception as e:
             logger.error(f"Error running {e}")
+        finally:
+            logger.info("Completed test case.")
+            weather_agent.
 
 
 # If you're running this script directly, you can use asyncio to run the async function
