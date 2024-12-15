@@ -45,7 +45,6 @@ print("LANGFUSE_HOST:", os.getenv("LANGFUSE_HOST"))
 
 
 class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
-
     class FunctionCallVerification(Exception):
         result: CreateResult
         name: str
@@ -60,36 +59,42 @@ class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
         super().__init__(*args, **kwargs)
         self.throw_on_create = throw_on_create
         self.expect_function_call = expect_function_call
-        self.create_results = []
+        self.create_results: list[CreateResult] = []
 
     def set_throw_on_create(self, throw_on_create):
         self.throw_on_create = throw_on_create
 
     async def create(self, *args, **kwargs):
-        result_original = super().create(*args, **kwargs)
-        if inspect.isawaitable(result_original):
-            result = await result_original
-        else:
-            result = result_original
-        self.create_results.append(result)
+        result_coroutine = super().create(*args, **kwargs)
 
-        logger.debug(f"Intercepted create call: {result}")
-        assert isinstance(result, CreateResult)
+        # res = await result_coroutine
+        # return res
 
-        if self.expect_function_call:
-            assert result.finish_reason == "function_calls"
-            assert isinstance(result.content, list)
-            assert len(result.content) == 1
-            function_call = result.content[0]
-            assert isinstance(function_call, FunctionCall)
-            arguments = json.loads(function_call.arguments)
+        # Define a wrapper coroutine
+        async def wrapper():
+            result = await result_coroutine
+            self.create_results.append(result)
 
-            if self.throw_on_create:
-                raise self.FunctionCallVerification(result, function_call.name, arguments)
-        else:
-            if self.throw_on_create:
-                raise Exception("Not implemented")
-        return result_original
+            logger.debug(f"Intercepted create call: {result}")
+            assert isinstance(result, CreateResult)
+
+            if self.expect_function_call:
+                assert result.finish_reason == "function_calls"
+                assert isinstance(result.content, list)
+                assert len(result.content) == 1
+                function_call = result.content[0]
+                assert isinstance(function_call, FunctionCall)
+                arguments = json.loads(function_call.arguments)
+
+                if self.throw_on_create:
+                    raise self.FunctionCallVerification(result, function_call.name, arguments)
+            else:
+                if self.throw_on_create:
+                    raise Exception("Not implemented")
+            return result
+
+        # Return the wrapper coroutine
+        return await wrapper()
 
 
 model_client = OpenAIChatCompletionClientWrapper(

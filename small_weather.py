@@ -127,7 +127,7 @@ async def main():
     # logger.info(f"Team run completed with result: {result}")
 
     # When True, calls to "create" are intercepted correctly
-    model_client.set_throw_on_create(True)
+    # model_client.set_throw_on_create(True)
 
     weather_agent._runtime = runtime
 
@@ -153,6 +153,14 @@ async def main():
             logger.info(f"Running assistant agent with query: {test_case.query}")
             result = await weather_agent.run(task=test_case.query)
             logger.info(f"Agent run completed with result: {result}")
+
+            # This call will not raise an exception if the function was called correctly
+            assert len(model_client.create_results) == 1
+            create_result = model_client.create_results[0]
+            function_call = create_result.content[0]
+
+            assert test_case.name == function_call.name
+            assert test_case.arguments == function_call.arguments
 
         except model_client.FunctionCallVerification as e:
             logger.info(f"Model completion result: {e.result}")
