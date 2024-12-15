@@ -82,18 +82,27 @@ async def get_test_cases_for_function(
     """
     Generates test cases for a given function based on its description.
 
-    Parameters:
-    function (Tool): The function for which to generate test cases.
-                     - Must be a callable function.
-                     - The function description should be detailed and follow the specified format.
-
     Returns:
-    List[QNA]: A list of test cases in the form of QNA objects.
-               - Each test case contains a query, function name, and arguments.
-               - Example test case:
-                   QNA(query="What is the weather in London?", name="get_current_weather_information", arguments={"city": "London"})
+    - List[QNA]: A list of test cases as QNA objects.
+        - Each test case contains a query, function name, and arguments.
+        - Test cases should be in valid JSON format, using double quotes (`"`).
+
+    Example test case in JSON format:
+    {
+        "query": "What is the weather in London?",
+        "name": "get_current_weather_information",
+        "arguments": {
+            "city": "London"
+        }
+    }
+
+    Notes:
+    - Ensure that all strings are enclosed in double quotes (`"`) to produce valid JSON.
+    - The `arguments` field should be a JSON object with parameter names and their corresponding values.
+    - Avoid using single quotes (`'`) or other invalid JSON syntax.
+
     """
-    # Extract the function description
+    # Check if the function description is provided
     if not function_description:
         raise ValueError("Function description is missing.")
 
@@ -180,7 +189,7 @@ async def main():
     test_cases = [QNA(**t) for t in test_cases_dicts]
 
     state = await weather_agent.save_state()
-    for test_case in (QNA(**t) for t in test_cases):
+    for test_case in test_cases:
         try:
             logger.info(f"Running assistant agent with query: {test_case.query}")
             result = await weather_agent.run(task=test_case.query)
