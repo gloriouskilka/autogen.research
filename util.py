@@ -60,29 +60,10 @@ class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
         super().__init__(*args, **kwargs)
         self.throw_on_create = throw_on_create
         self.expect_function_call = expect_function_call
-        # self.on_create = None
-        # List of results to test later
         self.create_results = []
 
-    # def set_on_create(self, on_create):
-    #     self.on_create = on_create
     def set_throw_on_create(self, throw_on_create):
         self.throw_on_create = throw_on_create
-
-    # Manually checked like this:
-    # assert cr.finish_reason == "function_calls"
-    # assert isinstance(cr.content, list)
-    # assert len(cr.content) == 1
-    # function_call = cr.content[0]
-    # assert isinstance(function_call, FunctionCall)
-    #
-    # # function_call.arguments is a str of JSON
-    # logger.info(f"Function call arguments: {function_call.arguments}")
-    # arguments = json.loads(function_call.arguments)
-    #
-    # expected_arguments = {"city": "New York"}
-    # # Verify that Function was called with proper parameters
-    # assert arguments == expected_arguments
 
     async def create(self, *args, **kwargs):
         result_original = super().create(*args, **kwargs)
@@ -92,22 +73,21 @@ class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
             result = result_original
         self.create_results.append(result)
 
-        if self.throw_on_create:
-            logger.debug(f"Intercepted create call: {result}")
-            assert isinstance(result, CreateResult)
+        logger.debug(f"Intercepted create call: {result}")
+        assert isinstance(result, CreateResult)
 
-            if self.expect_function_call:
-                assert result.finish_reason == "function_calls"
-                assert isinstance(result.content, list)
-                assert len(result.content) == 1
-                function_call = result.content[0]
-                assert isinstance(function_call, FunctionCall)
+        if self.expect_function_call:
+            assert result.finish_reason == "function_calls"
+            assert isinstance(result.content, list)
+            assert len(result.content) == 1
+            function_call = result.content[0]
+            assert isinstance(function_call, FunctionCall)
+            arguments = json.loads(function_call.arguments)
 
-                # function_call.arguments is a str of JSON
-                arguments = json.loads(function_call.arguments)
-
+            if self.throw_on_create:
                 raise self.FunctionCallVerification(result, function_call.name, arguments)
-            else:
+        else:
+            if self.throw_on_create:
                 raise Exception("Not implemented")
         return result_original
 

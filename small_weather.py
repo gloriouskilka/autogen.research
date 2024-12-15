@@ -126,13 +126,9 @@ async def main():
     # result = await team.run(task="What is the weather in New York?")
     # logger.info(f"Team run completed with result: {result}")
 
-    model_client.set_throw_on_create(True)
+    # model_client.set_throw_on_create(True)
 
     weather_agent._runtime = runtime
-
-    # TODO: this should be generated, might be cached
-    # query_to_agent = "What is the weather in New York?"
-    # expected_arguments = {"city": "New York"}
 
     class QNA(BaseModel):
         query: str
