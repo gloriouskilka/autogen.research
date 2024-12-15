@@ -57,15 +57,15 @@ async def get_current_weather_information(city: str) -> str:
 
     try:
         async with aiohttp.ClientSession() as session:
-            api_url = f"https://api.weatherprovider.com/v1/current?city={city}&apikey=YOUR_API_KEY"
+            api_url = f"http://api.weatherstack.com/current?access_key={settings.weatherstack_api_key}&query={city}"
             async with session.get(api_url) as response:
                 if response.status != 200:
                     logger.error(f"Failed to retrieve weather data for {city}. Status code: {response.status}")
                     response.raise_for_status()
                 data = await response.json()
 
-                temperature = data["temperature"]
-                condition = data["condition"]
+                temperature = data["current"]["temperature"]
+                condition = data["current"]["weather_descriptions"][0]
 
                 weather_info = f"The weather in {city} is {temperature} degrees and {condition}."
                 logger.info(f"Retrieved weather for {city}: {weather_info}")
@@ -114,19 +114,19 @@ async def main():
     )
     logger.info("Assistant agent created.")
 
-    runtime.start()
-
     # Define a termination condition.
     text_termination = TextMentionTermination("TERMINATE")
     logger.info("Termination condition defined.")
 
     # Create a single-agent team.
-    # single_agent_team = RoundRobinGroupChat([weather_agent], termination_condition=text_termination)
+    team = RoundRobinGroupChat([weather_agent], termination_condition=text_termination)
     logger.info("Single-agent team created.")
 
+    team._runtime = runtime
+
     logger.info("Starting team run.")
-    # result = await single_agent_team.run(task="What is the weather in New York?")
-    # logger.info(f"Team run completed with result: {result}")
+    result = await team.run(task="What is the weather in New York?")
+    logger.info(f"Team run completed with result: {result}")
 
 
 # If you're running this script directly, you can use asyncio to run the async function

@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     langfuse_public_key: str = Field(default=None)
     langfuse_host: str = Field(default=None)
 
+    weatherstack_api_key: str = Field(default=None)
+
 
 settings = Settings()
 
