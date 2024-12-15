@@ -126,7 +126,8 @@ async def main():
     # result = await team.run(task="What is the weather in New York?")
     # logger.info(f"Team run completed with result: {result}")
 
-    # model_client.set_throw_on_create(True)
+    # When True, calls to "create" are intercepted correctly
+    model_client.set_throw_on_create(True)
 
     weather_agent._runtime = runtime
 
