@@ -1,4 +1,8 @@
-from autogen_core import SingleThreadedAgentRuntime
+import json
+from typing import List
+
+from autogen_core import SingleThreadedAgentRuntime, FunctionCall
+from autogen_core.models import CreateResult
 from langfuse import Langfuse
 from loguru import logger
 import sys
@@ -128,10 +132,24 @@ async def main():
         # model_client.set_on_create(lambda result: logger.info(f"Model completion result: {result}"))
         result = await weather_agent.run(task="What is the weather in New York?")
         logger.info(f"Agent run completed with result: {result}")
-    except model_client.CreatedResult as e:
+    except model_client.CreateResultException as e:
         logger.info(f"Model completion result: {e.result}")
+        cr: CreateResult = e.result
 
-        coro_result = await e.result
+        assert cr.finish_reason == "function_calls"
+        assert isinstance(cr.content, list)
+        assert len(cr.content) == 1
+        function_call = cr.content[0]
+        assert isinstance(function_call, FunctionCall)
+
+        # function_call.arguments is a str of JSON
+        logger.info(f"Function call arguments: {function_call.arguments}")
+        arguments = json.loads(function_call.arguments)
+
+        expected_arguments = {"city": "New York"}
+        # Verify that Function was called with proper parameters
+        assert arguments == expected_arguments
+
         i = 100
 
     except Exception as e:

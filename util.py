@@ -1,6 +1,7 @@
 import inspect
 import os
 
+from autogen_core.models import CreateResult
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from dotenv import load_dotenv
 from langfuse import Langfuse
@@ -42,9 +43,9 @@ print("LANGFUSE_HOST:", os.getenv("LANGFUSE_HOST"))
 
 class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
 
-    class CreatedResult(Exception):
-        def __init__(self, result):
-            self.result = result
+    class CreateResultException(Exception):
+        def __init__(self, result: CreateResult):
+            self.result: CreateResult = result
 
     def __init__(self, throw_on_create=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -67,7 +68,8 @@ class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
         self.create_results.append(result)
 
         if self.throw_on_create:
-            raise self.CreatedResult(result)
+            assert isinstance(result, CreateResult)
+            raise self.CreateResultException(result)
         return result_original
 
 
