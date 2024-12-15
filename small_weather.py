@@ -143,17 +143,14 @@ async def main():
     logger.info("Assistant agent created.")
 
     # Define a termination condition.
-    text_termination = TextMentionTermination("TERMINATE")
+    # text_termination = TextMentionTermination("TERMINATE")
     logger.info("Termination condition defined.")
 
     # Create a single-agent team.
-    team = RoundRobinGroupChat([weather_agent], termination_condition=text_termination)
-    logger.info("Single-agent team created.")
+    # team = RoundRobinGroupChat([weather_agent], termination_condition=text_termination)
+    # logger.info("Single-agent team created.")
 
-    team._runtime = runtime
-    # When True, calls to "create" are intercepted correctly
-    # model_client.set_throw_on_create(True)
-
+    # team._runtime = runtime
     weather_agent._runtime = runtime
 
     function_cases_agent = AssistantAgent(
@@ -164,8 +161,10 @@ async def main():
     )
 
     res = await function_cases_agent.run(
-        task=f"Generate test cases, function_name: get_current_weather_information, function_description: {get_current_weather_information.__doc__}"
+        task=f"Generate 10 test cases, function_name: get_current_weather_information, function_description: {get_current_weather_information.__doc__}"
     )
+
+    model_client.set_throw_on_create(True)
 
     test_cases_dicts = ast.literal_eval(res.messages[-1].content)
     test_cases = [QNA(**t) for t in test_cases_dicts]
