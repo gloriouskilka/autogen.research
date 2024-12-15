@@ -1,27 +1,15 @@
-import os
-
 from autogen_core import SingleThreadedAgentRuntime
 from langfuse import Langfuse
 from loguru import logger
 import sys
 
-# Define a tool that gets the weather for a city.
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import TextMentionTermination
 from autogen_agentchat.teams import RoundRobinGroupChat
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
 from util import model_client, settings, configure_tracing
 
 import aiohttp
-
-
-from opentelemetry import trace
-
-# from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 
 # Prompt used:
