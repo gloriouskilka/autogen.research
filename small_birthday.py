@@ -16,16 +16,6 @@ from util import model_client, settings, configure_tracing
 
 from opentelemetry import trace
 
-langfuse = Langfuse(
-    secret_key=settings.langfuse_secret_key,
-    public_key=settings.langfuse_public_key,
-    host=settings.langfuse_host,
-)
-
-
-logger.info(f"Langfuse host: {langfuse.base_url}")
-logger.info(f"Langfuse project_id: {langfuse.project_id}")
-
 
 # @observe
 def test_function():
@@ -35,6 +25,14 @@ def test_function():
 
 @observe
 async def main():
+    langfuse = Langfuse(
+        secret_key=settings.langfuse_secret_key,
+        public_key=settings.langfuse_public_key,
+        host=settings.langfuse_host,
+    )
+    logger.info(f"Langfuse host: {langfuse.base_url}")
+    logger.info(f"Langfuse project_id: {langfuse.project_id}")
+
     tracer_provider = configure_tracing(langfuse_client=langfuse)
     runtime = SingleThreadedAgentRuntime(tracer_provider=tracer_provider)
 
