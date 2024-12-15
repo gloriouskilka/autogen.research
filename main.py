@@ -179,13 +179,13 @@ async def init_db():
         await session.commit()
 
 
-# ---------------------------
-# Tool Definitions
-# ---------------------------
+# Input -> mermaid diagram of DB tables
 
 
 # Tool to execute SQL queries
 async def execute_sql_query(query_name: str, product_name: str) -> Dict[str, Any]:
+    # Execute predefined SQL queries to retrieve sales or customer feedback data for a given product.
+
     async with AsyncSessionLocal() as session:
         if query_name == "get_sales_data":
             stmt = (
@@ -223,6 +223,7 @@ async def execute_sql_query(query_name: str, product_name: str) -> Dict[str, Any
 
 # Tool to analyze data
 async def analyze_data(product_name: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    # Analyze sales and customer feedback data for a given product to provide insights.
     analysis_results = {}
 
     # Analyze sales trends
@@ -281,16 +282,6 @@ async def analyze_data(product_name: str, data: Dict[str, Any]) -> Dict[str, Any
     return analysis_results
 
 
-# Wrap tools with FunctionTool
-execute_sql_query_tool = FunctionTool(
-    execute_sql_query,
-    description="Execute predefined SQL queries to retrieve sales or customer feedback data for a given product.",
-)
-analyze_data_tool = FunctionTool(
-    analyze_data,
-    description="Analyze sales and customer feedback data for a given product to provide insights.",
-)
-
 # ---------------------------
 # Agents
 # ---------------------------
@@ -317,7 +308,7 @@ Always include necessary data in your handoffs.
 sql_query_agent = AssistantAgent(
     name="SQLQueryAgent",
     model_client=model_client,
-    tools=[execute_sql_query_tool],
+    tools=[execute_sql_query],
     handoffs=["PlannerAgent"],
     system_message="""
 You are the SQLQueryAgent.
@@ -332,7 +323,7 @@ You are the SQLQueryAgent.
 data_analysis_agent = AssistantAgent(
     name="DataAnalysisAgent",
     model_client=model_client,
-    tools=[analyze_data_tool],
+    tools=[analyze_data],
     handoffs=["PlannerAgent"],
     system_message="""
 You are the DataAnalysisAgent.
