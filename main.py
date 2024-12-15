@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from datetime import datetime
 from typing import Dict, Any, List
 
@@ -7,7 +8,10 @@ from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.messages import HandoffMessage
 from autogen_agentchat.teams import Swarm
 from autogen_agentchat.conditions import TextMentionTermination
+from autogen_core import SingleThreadedAgentRuntime
 from autogen_ext.models.openai import OpenAIChatCompletionClient
+from langfuse import Langfuse
+from loguru import logger
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -18,7 +22,7 @@ from sqlalchemy import select
 
 from autogen_core.tools import FunctionTool
 
-from util import model_client
+from util import model_client, settings, configure_tracing
 
 # ---------------------------
 # Database Setup
@@ -384,6 +388,28 @@ team = Swarm(
 
 # Run the team
 async def main():
+    langfuse = Langfuse(
+        secret_key=settings.langfuse_secret_key,
+        public_key=settings.langfuse_public_key,
+        host=settings.langfuse_host,
+    )
+    logger.info(f"Langfuse host: {langfuse.base_url}")
+    logger.info(f"Langfuse project_id: {langfuse.project_id}")
+
+    tracer_provider = configure_tracing(langfuse_client=langfuse)
+    runtime = SingleThreadedAgentRuntime(tracer_provider=tracer_provider)
+
+    # Configure loguru
+    logger.remove()  # Remove default handler
+    logger.add(
+        sys.stderr,
+        format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
+        "<level>{level: <8}</level> | "
+        "<cyan>{module}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+        "<level>{message}</level>",
+        level="INFO",
+    )
+
     # Initialize the database with sample data
     await init_db()
 
@@ -395,6 +421,8 @@ async def main():
     tasks = [
         "Show the info about Black Hat",
     ]
+
+    team._runtime = runtime
 
     # Run the tasks sequentially
     for task in tasks:

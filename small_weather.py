@@ -1,6 +1,7 @@
 import os
 
 from autogen_core import SingleThreadedAgentRuntime
+from langfuse import Langfuse
 from loguru import logger
 import sys
 
@@ -10,7 +11,7 @@ from autogen_agentchat.conditions import TextMentionTermination
 from autogen_agentchat.teams import RoundRobinGroupChat
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
-from util import model_client
+from util import model_client, settings, configure_tracing
 
 import aiohttp
 
@@ -21,16 +22,6 @@ from opentelemetry import trace
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
-
-def configure_oltp_tracing(endpoint: str = None) -> trace.TracerProvider:
-    # Configure Tracing
-    tracer_provider = TracerProvider(resource=Resource({"service.name": "my-service"}))
-    processor = BatchSpanProcessor(OTLPSpanExporter())
-    tracer_provider.add_span_processor(processor)
-    trace.set_tracer_provider(tracer_provider)
-
-    return tracer_provider
 
 
 # Prompt used:
@@ -92,48 +83,16 @@ async def get_current_weather_information(city: str) -> str:
 
 
 async def main():
-    tracer_provider = configure_oltp_tracing()
+    langfuse = Langfuse(
+        secret_key=settings.langfuse_secret_key,
+        public_key=settings.langfuse_public_key,
+        host=settings.langfuse_host,
+    )
+    logger.info(f"Langfuse host: {langfuse.base_url}")
+    logger.info(f"Langfuse project_id: {langfuse.project_id}")
 
-    # +Copy-paste
-    # runtime = SingleThreadedAgentRuntime()
+    tracer_provider = configure_tracing(langfuse_client=langfuse)
     runtime = SingleThreadedAgentRuntime(tracer_provider=tracer_provider)
-
-    # Create an appropriate client
-    # client = create_completion_client_from_env()
-
-    # # Register agents.
-    # await MultimodalWebSurfer.register(
-    #     runtime,
-    #     "WebSurfer",
-    #     lambda: MultimodalWebSurfer(),
-    # )
-    # web_surfer = AgentProxy(AgentId("WebSurfer", "default"), runtime)
-    #
-    # await UserProxy.register(
-    #     runtime,
-    #     "UserProxy",
-    #     lambda: UserProxy(),
-    # )
-    # user_proxy = AgentProxy(AgentId("UserProxy", "default"), runtime)
-    # await RoundRobinOrchestrator.register(
-    #     runtime, "orchestrator", lambda: RoundRobinOrchestrator([web_surfer, user_proxy])
-    # )
-
-    # actual_surfer = await runtime.try_get_underlying_agent_instance(web_surfer.id, MultimodalWebSurfer)
-    # await actual_surfer.init(
-    #     model_client=client, downloads_folder=os.getcwd(), browser_channel="chromium", debug_dir=DEBUG_DIR
-    # )
-    #
-    # await runtime.send_message(
-    #     BroadcastMessage(
-    #         content=UserMessage(
-    #             content="Please visit the page 'https://en.wikipedia.org/wiki/Microsoft'", source="user"
-    #         )
-    #     ),
-    #     recipient=web_surfer.id,
-    #     sender=user_proxy.id,
-    # )
-    # -Copy-paste
 
     # Configure loguru
     logger.remove()  # Remove default handler
@@ -167,7 +126,7 @@ async def main():
 
     logger.info("Starting team run.")
     # result = await single_agent_team.run(task="What is the weather in New York?")
-    logger.info(f"Team run completed with result: {result}")
+    # logger.info(f"Team run completed with result: {result}")
 
 
 # If you're running this script directly, you can use asyncio to run the async function
