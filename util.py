@@ -1,3 +1,4 @@
+import inspect
 import os
 
 from autogen_ext.models.openai import OpenAIChatCompletionClient
@@ -36,7 +37,41 @@ print("LANGFUSE_PUBLIC_KEY:", os.getenv("LANGFUSE_PUBLIC_KEY"))
 # print("LANGFUSE_SECRET_KEY:", os.getenv("LANGFUSE_SECRET_KEY"))
 print("LANGFUSE_HOST:", os.getenv("LANGFUSE_HOST"))
 
-model_client = OpenAIChatCompletionClient(
+# I want to intercept "create" function calls to model_clint to test the result later
+
+
+class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
+
+    class CreatedResult(Exception):
+        def __init__(self, result):
+            self.result = result
+
+    def __init__(self, throw_on_create=False, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.throw_on_create = throw_on_create
+        # self.on_create = None
+        # List of results to test later
+        self.create_results = []
+
+    # def set_on_create(self, on_create):
+    #     self.on_create = on_create
+    def set_throw_on_create(self, throw_on_create):
+        self.throw_on_create = throw_on_create
+
+    async def create(self, *args, **kwargs):
+        result_original = super().create(*args, **kwargs)
+        if inspect.isawaitable(result_original):
+            result = await result_original
+        else:
+            result = result_original
+        self.create_results.append(result)
+
+        if self.throw_on_create:
+            raise self.CreatedResult(result)
+        return result_original
+
+
+model_client = OpenAIChatCompletionClientWrapper(
     model="gpt-4o-mini",
     api_key=settings.openai_api_key,
 )

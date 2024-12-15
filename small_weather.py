@@ -111,10 +111,31 @@ async def main():
     logger.info("Single-agent team created.")
 
     team._runtime = runtime
+    # for t in weather_agent._tools:
+    #     t: Tool
+    #     logger.info(f"Tool: {t}")
+    #     a = t._func
+    #     i = 100
 
-    logger.info("Starting team run.")
-    result = await team.run(task="What is the weather in New York?")
-    logger.info(f"Team run completed with result: {result}")
+    # logger.info("Starting team run.")
+    # result = await team.run(task="What is the weather in New York?")
+    # logger.info(f"Team run completed with result: {result}")
+
+    model_client.set_throw_on_create(True)
+
+    try:
+        weather_agent._runtime = runtime
+        # model_client.set_on_create(lambda result: logger.info(f"Model completion result: {result}"))
+        result = await weather_agent.run(task="What is the weather in New York?")
+        logger.info(f"Agent run completed with result: {result}")
+    except model_client.CreatedResult as e:
+        logger.info(f"Model completion result: {e.result}")
+
+        coro_result = await e.result
+        i = 100
+
+    except Exception as e:
+        logger.error(f"Error running assistant agent: {e}")
 
 
 # If you're running this script directly, you can use asyncio to run the async function
