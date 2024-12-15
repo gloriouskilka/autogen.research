@@ -12,7 +12,7 @@ from autogen_agentchat.conditions import TextMentionTermination
 from autogen_agentchat.teams import RoundRobinGroupChat
 from pydantic import BaseModel
 
-from util import model_client, settings, configure_tracing
+from util import model_client, settings, configure_tracing, OpenAIChatCompletionClientWrapper
 
 import aiohttp
 
@@ -116,16 +116,6 @@ async def main():
     logger.info("Single-agent team created.")
 
     team._runtime = runtime
-    # for t in weather_agent._tools:
-    #     t: Tool
-    #     logger.info(f"Tool: {t}")
-    #     a = t._func
-    #     i = 100
-
-    # logger.info("Starting team run.")
-    # result = await team.run(task="What is the weather in New York?")
-    # logger.info(f"Team run completed with result: {result}")
-
     # When True, calls to "create" are intercepted correctly
     # model_client.set_throw_on_create(True)
 
@@ -136,19 +126,22 @@ async def main():
         name: str
         arguments: dict
 
+    # Written as dict (Will be generated):
     test_cases = [
-        QNA(
-            query="What is the weather in New York?",
-            name="get_current_weather_information",
-            arguments={"city": "New York"},
-        ),
-        QNA(
-            query="What is the weather in London?", name="get_current_weather_information", arguments={"city": "London"}
-        ),
+        {
+            "query": "What is the weather in New York?",
+            "name": "get_current_weather_information",
+            "arguments": {"city": "New York"},
+        },
+        {
+            "query": "What is the weather in London?",
+            "name": "get_current_weather_information",
+            "arguments": {"city": "London"},
+        },
     ]
 
     state = await weather_agent.save_state()
-    for test_case in test_cases:
+    for test_case in (QNA(**t) for t in test_cases):
         try:
             logger.info(f"Running assistant agent with query: {test_case.query}")
             result = await weather_agent.run(task=test_case.query)
@@ -156,13 +149,12 @@ async def main():
 
             # This call will not raise an exception if the function was called correctly
             assert len(model_client.create_results) == 1
-            create_result = model_client.create_results[0]
-            function_call = create_result.content[0]
+            v = model_client.create_results.pop()
 
-            assert test_case.name == function_call.name
-            assert test_case.arguments == function_call.arguments
+            assert test_case.name == v.name
+            assert test_case.arguments == v.arguments
 
-        except model_client.FunctionCallVerification as e:
+        except OpenAIChatCompletionClientWrapper.FunctionCallVerification as e:
             logger.info(f"Model completion result: {e.result}")
 
             assert test_case.name == e.name

@@ -59,7 +59,7 @@ class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
         super().__init__(*args, **kwargs)
         self.throw_on_create = throw_on_create
         self.expect_function_call = expect_function_call
-        self.create_results: list[CreateResult] = []
+        self.create_results: list[OpenAIChatCompletionClientWrapper.FunctionCallVerification] = []
 
     def set_throw_on_create(self, throw_on_create):
         self.throw_on_create = throw_on_create
@@ -73,7 +73,6 @@ class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
         # Define a wrapper coroutine
         async def wrapper():
             result = await result_coroutine
-            self.create_results.append(result)
 
             logger.debug(f"Intercepted create call: {result}")
             assert isinstance(result, CreateResult)
@@ -86,8 +85,11 @@ class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
                 assert isinstance(function_call, FunctionCall)
                 arguments = json.loads(function_call.arguments)
 
+                verification = self.FunctionCallVerification(result, function_call.name, arguments)
                 if self.throw_on_create:
-                    raise self.FunctionCallVerification(result, function_call.name, arguments)
+                    raise verification
+                else:
+                    self.create_results.append(verification)
             else:
                 if self.throw_on_create:
                     raise Exception("Not implemented")
