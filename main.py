@@ -400,14 +400,6 @@ async def main():
     await init_db()
 
     # Define the tasks
-    # tasks = [
-    #     "Investigate why Black Hat is becoming more popular in our shop.",6
-    #     "Investigate why Yellow Hat is not popular in our shop.",
-    # ]
-    tasks = [
-        "Show the info about Black Hat",
-    ]
-
     # ---------------------------
     # Team Setup (Swarm)
     # ---------------------------
@@ -424,6 +416,16 @@ async def main():
 
     team._runtime = runtime
 
+    tasks = [
+        # "Show the info about Black Hat",
+        "Investigate why Black Hat is becoming more popular in our shop.",
+        "Investigate why Yellow Hat is not popular in our shop.",
+    ]
+
+    # tasks = [
+    #     "Investigate why Black Hat is becoming more popular in our shop.",6
+    #     "Investigate why Yellow Hat is not popular in our shop.",
+    # ]
     # Run the tasks sequentially
     for task in tasks:
         logger.debug(f"--- Starting task: {task} ---\n")
