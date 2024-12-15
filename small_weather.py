@@ -156,22 +156,6 @@ async def main():
 
     weather_agent._runtime = runtime
 
-    # Written as dict (Will be generated):
-    # test_cases = [
-    #     {
-    #         "query": "What is the weather in New York?",
-    #         "name": "get_current_weather_information",
-    #         "arguments": {"city": "New York"},
-    #     },
-    #     {
-    #         "query": "What is the weather in London?",
-    #         "name": "get_current_weather_information",
-    #         "arguments": {"city": "London"},
-    #     },
-    # ]
-
-    # Better, to have an Agent with a function that can come up with test cases based on the function's description
-
     function_cases_agent = AssistantAgent(
         "function_cases_agent",
         model_client=model_client,
@@ -186,6 +170,7 @@ async def main():
     test_cases_dicts = ast.literal_eval(res.messages[-1].content)
     test_cases = [QNA(**t) for t in test_cases_dicts]
 
+    model_client.create_results.clear()
     state = await weather_agent.save_state()
     for test_case in test_cases:
         try:
