@@ -1,6 +1,8 @@
 import inspect
+import json
 import os
 
+from autogen_core import FunctionCall
 from autogen_core.models import CreateResult
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from dotenv import load_dotenv
@@ -43,13 +45,20 @@ print("LANGFUSE_HOST:", os.getenv("LANGFUSE_HOST"))
 
 class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
 
-    class CreateResultException(Exception):
-        def __init__(self, result: CreateResult):
-            self.result: CreateResult = result
+    class FunctionCallVerification(Exception):
+        result: CreateResult
+        name: str
+        arguments: dict
 
-    def __init__(self, throw_on_create=False, *args, **kwargs):
+        def __init__(self, result: CreateResult, name: str, arguments: dict):
+            self.result: CreateResult = result
+            self.name: str = name
+            self.arguments: dict = arguments
+
+    def __init__(self, throw_on_create=False, expect_function_call=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.throw_on_create = throw_on_create
+        self.expect_function_call = expect_function_call
         # self.on_create = None
         # List of results to test later
         self.create_results = []
@@ -58,6 +67,21 @@ class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
     #     self.on_create = on_create
     def set_throw_on_create(self, throw_on_create):
         self.throw_on_create = throw_on_create
+
+    # Manually checked like this:
+    # assert cr.finish_reason == "function_calls"
+    # assert isinstance(cr.content, list)
+    # assert len(cr.content) == 1
+    # function_call = cr.content[0]
+    # assert isinstance(function_call, FunctionCall)
+    #
+    # # function_call.arguments is a str of JSON
+    # logger.info(f"Function call arguments: {function_call.arguments}")
+    # arguments = json.loads(function_call.arguments)
+    #
+    # expected_arguments = {"city": "New York"}
+    # # Verify that Function was called with proper parameters
+    # assert arguments == expected_arguments
 
     async def create(self, *args, **kwargs):
         result_original = super().create(*args, **kwargs)
@@ -69,7 +93,20 @@ class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
 
         if self.throw_on_create:
             assert isinstance(result, CreateResult)
-            raise self.CreateResultException(result)
+
+            if self.expect_function_call:
+                assert result.finish_reason == "function_calls"
+                assert isinstance(result.content, list)
+                assert len(result.content) == 1
+                function_call = result.content[0]
+                assert isinstance(function_call, FunctionCall)
+
+                # function_call.arguments is a str of JSON
+                arguments = json.loads(function_call.arguments)
+
+                raise self.FunctionCallVerification(result, function_call.name, arguments)
+            else:
+                raise Exception("Not implemented")
         return result_original
 
 

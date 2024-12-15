@@ -10,6 +10,7 @@ import sys
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import TextMentionTermination
 from autogen_agentchat.teams import RoundRobinGroupChat
+from pydantic import BaseModel
 
 from util import model_client, settings, configure_tracing
 
@@ -127,33 +128,43 @@ async def main():
 
     model_client.set_throw_on_create(True)
 
-    try:
-        weather_agent._runtime = runtime
-        # model_client.set_on_create(lambda result: logger.info(f"Model completion result: {result}"))
-        result = await weather_agent.run(task="What is the weather in New York?")
-        logger.info(f"Agent run completed with result: {result}")
-    except model_client.CreateResultException as e:
-        logger.info(f"Model completion result: {e.result}")
-        cr: CreateResult = e.result
+    weather_agent._runtime = runtime
 
-        assert cr.finish_reason == "function_calls"
-        assert isinstance(cr.content, list)
-        assert len(cr.content) == 1
-        function_call = cr.content[0]
-        assert isinstance(function_call, FunctionCall)
+    # TODO: this should be generated, might be cached
+    # query_to_agent = "What is the weather in New York?"
+    # expected_arguments = {"city": "New York"}
 
-        # function_call.arguments is a str of JSON
-        logger.info(f"Function call arguments: {function_call.arguments}")
-        arguments = json.loads(function_call.arguments)
+    class QNA(BaseModel):
+        query: str
+        name: str
+        arguments: dict
 
-        expected_arguments = {"city": "New York"}
-        # Verify that Function was called with proper parameters
-        assert arguments == expected_arguments
+    test_cases = [
+        QNA(
+            query="What is the weather in New York?",
+            name="get_current_weather_information",
+            arguments={"city": "New York"},
+        ),
+        QNA(
+            query="What is the weather in London?", name="get_current_weather_information", arguments={"city": "London"}
+        ),
+    ]
 
-        i = 100
+    for test_case in test_cases:
+        try:
+            logger.info(f"Running assistant agent with query: {test_case.query}")
+            result = await weather_agent.run(task=test_case.query)
+            logger.info(f"Agent run completed with result: {result}")
 
-    except Exception as e:
-        logger.error(f"Error running assistant agent: {e}")
+        except model_client.FunctionCallVerification as e:
+            logger.info(f"Model completion result: {e.result}")
+
+            assert test_case.name == e.name
+            assert test_case.arguments == e.arguments
+
+            logger.info(f"Function called correctly: {e.name} with arguments: {e.arguments}")
+        except Exception as e:
+            logger.error(f"Error running {e}")
 
 
 # If you're running this script directly, you can use asyncio to run the async function
