@@ -89,9 +89,9 @@ from sqlalchemy.sql import text
 # Initialize the database
 async def init_db():
     # Read SQL scripts from files
-    with open("01_create.sql", "r") as f:
+    with open("books\\01_create.sql", "r") as f:
         create_table_sql = f.read()
-    with open("02_insert.sql", "r") as f:
+    with open("books\\02_insert.sql", "r") as f:
         insert_data_sql = f.read()
 
     # Use the async engine to execute SQL statements
@@ -153,7 +153,7 @@ async def execute_sql_query(query_name: str) -> List[Dict[str, Any]]:
     query_file = query_files[query_name]
 
     # Read the SQL query from the file
-    with open(query_file, "r") as f:
+    with open("books\\" + query_file, "r") as f:
         query_sql = f.read()
 
     # Execute the SQL query
