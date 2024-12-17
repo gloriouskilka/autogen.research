@@ -30,6 +30,24 @@ from util import model_client, settings, configure_tracing, OpenAIChatCompletion
 
 DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
+
+# erDiagram
+#     sales {
+#         Integer id PK
+#         String product_name
+#         String color
+#         String size
+#         Integer quantity_sold
+#         Date date
+#     }
+#     customer_feedback {
+#         Integer id PK
+#         String product_name
+#         String feedback
+#         Date date
+#     }
+#     sales ||--o{ customer_feedback : "receives"
+
 metadata = sa.MetaData()
 
 # Define tables
