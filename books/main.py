@@ -330,14 +330,18 @@ async def main():
     logger.debug("You can ask the agent to analyze various aspects of your inventory.")
     logger.debug("Type 'TERMINATE' to end the conversation.\n")
 
-    while True:
-        user_input = input("Please enter your request: ")
-        if user_input.strip().upper() == "TERMINATE":
-            logger.debug("Conversation terminated.")
-            break
+    # while True:
+    # task = input("Please enter your request: ")
+    # if task.strip().upper() == "TERMINATE":
+    #     logger.debug("Conversation terminated.")
+    #     break
 
-        # Run the agent and stream the output
-        await Console(analysis_agent.run_stream(user_input, termination_condition=termination_condition))
+    task = "excess_inventory"
+
+    # Run the agent and stream the output
+    # await Console(analysis_agent.run_stream(task, termination_condition=termination_condition))
+    result = await Console(analysis_agent.run_stream(task=task))
+    i = 100
 
 
 if __name__ == "__main__":
