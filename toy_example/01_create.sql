@@ -1,32 +1,32 @@
 -- Create the BOOKS table
 CREATE TABLE BOOKS (
-    BookID INT PRIMARY KEY,
+    BookID INT AUTO_INCREMENT PRIMARY KEY,
     Title VARCHAR(255) NOT NULL,
     Author VARCHAR(255),
-    ISBN VARCHAR(20),
+    ISBN VARCHAR(20) UNIQUE,
     Category VARCHAR(100),
     Publisher VARCHAR(255),
     PublicationDate DATE,
-    Price DECIMAL(10, 2)
+    Price DECIMAL(10, 2) NOT NULL
 );
 
 -- Create the INVENTORY table
 CREATE TABLE INVENTORY (
     BookID INT PRIMARY KEY,
-    QuantityOnHand INT NOT NULL,
-    ReorderLevel INT NOT NULL,
-    Status VARCHAR(50),
+    QuantityOnHand INT NOT NULL DEFAULT 0,
+    ReorderLevel INT NOT NULL DEFAULT 0,
+    Status VARCHAR(50) NOT NULL DEFAULT 'Active',
     WarehouseLocation VARCHAR(100),
-    FOREIGN KEY (BookID) REFERENCES BOOKS(BookID)
+    FOREIGN KEY (BookID) REFERENCES BOOKS(BookID) ON DELETE CASCADE
 );
 
 -- Create the INVENTORY_ADJUSTMENTS table
 CREATE TABLE INVENTORY_ADJUSTMENTS (
-    AdjustmentID INT PRIMARY KEY,
+    AdjustmentID INT AUTO_INCREMENT PRIMARY KEY,
     BookID INT NOT NULL,
     AdjustmentDate DATE NOT NULL,
-    AdjustmentType VARCHAR(50),
+    AdjustmentType ENUM('Purchase', 'Sale', 'Obsolescence') NOT NULL,
     QuantityAdjusted INT NOT NULL,
     Reason VARCHAR(255),
-    FOREIGN KEY (BookID) REFERENCES BOOKS(BookID)
+    FOREIGN KEY (BookID) REFERENCES BOOKS(BookID) ON DELETE CASCADE
 );
