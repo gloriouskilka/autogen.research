@@ -45,21 +45,38 @@ print("LANGFUSE_HOST:", os.getenv("LANGFUSE_HOST"))
 
 
 class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
-    class FunctionCallVerification(Exception):
+    class Verification(Exception):
         result: CreateResult
-        name: str
-        arguments: dict
 
-        def __init__(self, result: CreateResult, name: str, arguments: dict):
-            self.result: CreateResult = result
-            self.name: str = name
-            self.arguments: dict = arguments
+        def __init__(self, result: CreateResult):
+            self.result = result
+
+    class FunctionCallRecord(BaseModel):
+        function_name: str
+        arguments: dict
+        # You can include other fields as necessary, such as the function call id, etc.
+
+    class FunctionCallVerification(Verification):
+        function_calls: list["OpenAIChatCompletionClientWrapper.FunctionCallRecord"]
+
+        def __init__(
+            self, result: CreateResult, function_calls: list["OpenAIChatCompletionClientWrapper.FunctionCallRecord"]
+        ):
+            super().__init__(result)
+            self.function_calls = function_calls
+
+    class TextResultVerification(Verification):
+        content: str
+
+        def __init__(self, result: CreateResult):
+            super().__init__(result)
+            self.content = result.content
 
     def __init__(self, throw_on_create=False, expect_function_call=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.throw_on_create = throw_on_create
         self.expect_function_call = expect_function_call
-        self.create_results: list[OpenAIChatCompletionClientWrapper.FunctionCallVerification] = []
+        self.create_results: list[OpenAIChatCompletionClientWrapper.Verification] = []
 
     def set_throw_on_create(self, throw_on_create):
         self.throw_on_create = throw_on_create
@@ -75,21 +92,38 @@ class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
             assert isinstance(result, CreateResult)
 
             if self.expect_function_call:
-                assert result.finish_reason == "function_calls"
-                assert isinstance(result.content, list)
-                assert len(result.content) == 1
-                function_call = result.content[0]
-                assert isinstance(function_call, FunctionCall)
-                arguments = json.loads(function_call.arguments)
+                assert (
+                    result.finish_reason == "function_calls"
+                ), f"Expected 'function_calls' but got '{result.finish_reason}'"
+                assert isinstance(result.content, list), "Expected result.content to be a list"
+                if len(result.content) == 0:
+                    raise Exception("No function calls returned.")
 
-                verification = self.FunctionCallVerification(result, function_call.name, arguments)
+                function_calls = []
+                for function_call in result.content:
+                    assert isinstance(function_call, FunctionCall), f"Expected FunctionCall, got {type(function_call)}"
+                    function_call_record = self.FunctionCallRecord(
+                        function_name=function_call.name, arguments=json.loads(function_call.arguments)
+                    )
+                    function_calls.append(function_call_record)
+
+                # After collecting all function calls, create the verification object
+                verification = self.FunctionCallVerification(result, function_calls)
+
                 if self.throw_on_create:
                     raise verification
                 else:
                     self.create_results.append(verification)
             else:
+                assert result.finish_reason == "stop", f"Expected 'stop' but got '{result.finish_reason}'"
+                assert isinstance(result.content, str), "Expected result.content to be a string"
+
+                verification = self.TextResultVerification(result)
+
                 if self.throw_on_create:
-                    raise Exception("Not implemented")
+                    raise verification
+                else:
+                    self.create_results.append(verification)
             return result
 
         # Return the wrapper coroutine
