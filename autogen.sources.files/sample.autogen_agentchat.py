@@ -1,6 +1,4 @@
 """
-CheatSheet.py
-
 This cheat sheet provides a comprehensive guide and best practices on how to use the Autogen framework for building agent-based applications with LLMs (Large Language Models).
 
 Audience: Python developers and professionals looking to quickly understand and implement the Autogen framework in their applications.
@@ -341,8 +339,6 @@ Ensure that you have the necessary permissions and that your usage complies with
 
 
 """
-Continuing CheatSheet.py
-
 In this continuation, we delve into building complex agent-based systems using the Autogen framework.
 We focus on how to design agents that use tools to query and process data (e.g., SQL databases) without
 unnecessarily passing large amounts of data through the LLM, thereby saving tokens and stabilizing the solution.
