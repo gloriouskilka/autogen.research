@@ -8,7 +8,7 @@ SELECT
     b.Title,
     i.QuantityOnHand,
     i.ReorderLevel,
-    COALESCE(SUM(CASE WHEN a.AdjustmentType = 'Sale' THEN -a.QuantityAdjusted ELSE 0 END), 0) AS TotalSales
+    COALESCE(SUM(ABS(a.QuantityAdjusted)), 0) AS TotalUnitsSold
 FROM
     INVENTORY i
     JOIN BOOKS b ON i.BookID = b.BookID
@@ -20,18 +20,24 @@ GROUP BY
     i.ReorderLevel
 HAVING
     i.QuantityOnHand > (i.ReorderLevel * 1.5)
-    AND COALESCE(SUM(-a.QuantityAdjusted), 0) < (i.QuantityOnHand / 2)
+    AND COALESCE(SUM(ABS(a.QuantityAdjusted)), 0) < (i.QuantityOnHand / 2)
 ORDER BY
     i.BookID;
 
- /*
- Explanation:
- - COALESCE ensures that books with no sales are treated as having zero sales.
- - Adjusted `QuantityAdjusted` sign to reflect actual sales quantity.
- */
-
 /*
 Explanation:
+- Uses ABS to ensure QuantityAdjusted is treated as positive for sales.
+- Renamed TotalSales to TotalUnitsSold for clarity.
+*/
+
+/*
+Objective: Identify books with excess inventory by ensuring:
+1. Current stock exceeds 1.5 times the reorder level.
+2. Total units sold are less than half of the current stock, indicating slow movement.
+*/
+
+
+/*
 Objective: Find books where the current stock is significantly higher than the reorder level, and sales are not sufficient to justify the high stock levels.
 Logic:
 Excess Stock Condition: QuantityOnHand > (ReorderLevel * 1.5)
