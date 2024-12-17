@@ -59,7 +59,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
+from sqlalchemy import Column, Integer, String, Date, Text
+from sqlalchemy.sql import text
 
 from autogen_core.tools import FunctionTool
 
@@ -71,26 +72,7 @@ from util import model_client, settings, configure_tracing, OpenAIChatCompletion
 
 DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
-
-# erDiagram
-#     sales {
-#         Integer id PK
-#         String product_name
-#         String color
-#         String size
-#         Integer quantity_sold
-#         Date date
-#     }
-#     customer_feedback {
-#         Integer id PK
-#         String product_name
-#         String feedback
-#         Date date
-#     }
-#     sales ||--o{ customer_feedback : "receives"
-
-
-# SQL string to create the tables (creation of structure based on mermaid diagrams)
+# SQL string to create the tables
 create_table_sql = """
 -- Create the 'sales' table
 CREATE TABLE sales (
@@ -111,7 +93,7 @@ CREATE TABLE customer_feedback (
 );
 """
 
-# SQL string to insert data (filling in the data)
+# SQL string to insert data
 insert_data_sql = """
 -- Insert data into 'sales' table
 INSERT INTO sales (id, product_name, color, size, quantity_sold, date) VALUES
@@ -135,15 +117,42 @@ INSERT INTO customer_feedback (id, product_name, feedback, date) VALUES
     (7, 'Black Hat', 'Perfect for everyday use.', '2023-09-08');
 """
 
-
 # Create async engine
 engine = create_async_engine(DATABASE_URL, echo=False, future=True)
 
 # Create session factory
 AsyncSessionLocal = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
+# Import the text function
+from sqlalchemy.sql import text
 
-# Input -> mermaid diagram of DB tables
+
+# Initialize the database
+async def init_db():
+    # Use the async engine to execute SQL statements
+    async with engine.begin() as conn:
+        # Split the create_table_sql into individual statements and execute them
+        for stmt in create_table_sql.strip().split(";"):
+            stmt = stmt.strip()
+            if stmt:
+                await conn.execute(text(stmt))
+        # Split the insert_data_sql into individual statements and execute them
+        for stmt in insert_data_sql.strip().split(";"):
+            stmt = stmt.strip()
+            if stmt:
+                await conn.execute(text(stmt))
+    # Optionally, fetch and display data to verify
+    async with AsyncSessionLocal() as session:
+        print("Sales Table:")
+        result = await session.execute(text("SELECT * FROM sales"))
+        sales_rows = result.fetchall()
+        for row in sales_rows:
+            print(row)
+        print("\nCustomer Feedback Table:")
+        result = await session.execute(text("SELECT * FROM customer_feedback"))
+        feedback_rows = result.fetchall()
+        for row in feedback_rows:
+            print(row)
 
 
 # ---------------------------
@@ -157,15 +166,13 @@ async def get_sales_data(product_name: str) -> Dict[str, Any]:
     Retrieve sales data for a given product.
     """
     async with AsyncSessionLocal() as session:
-        stmt = (
-            select(
-                sales_table.c.date,
-                sales_table.c.quantity_sold,
-            )
-            .where(sales_table.c.product_name == product_name)
-            .order_by(sales_table.c.date)
-        )
-        result = await session.execute(stmt)
+        query = """
+        SELECT date, quantity_sold
+        FROM sales
+        WHERE product_name = :product_name
+        ORDER BY date
+        """
+        result = await session.execute(text(query), {"product_name": product_name})
         data = result.fetchall()
         return {
             "sales_data": [{"date": row.date.strftime("%Y-%m-%d"), "quantity_sold": row.quantity_sold} for row in data]
@@ -178,15 +185,13 @@ async def get_customer_feedback(product_name: str) -> Dict[str, Any]:
     Retrieve customer feedback for a given product.
     """
     async with AsyncSessionLocal() as session:
-        stmt = (
-            select(
-                customer_feedback_table.c.feedback,
-                customer_feedback_table.c.date,
-            )
-            .where(customer_feedback_table.c.product_name == product_name)
-            .order_by(customer_feedback_table.c.date)
-        )
-        result = await session.execute(stmt)
+        query = """
+        SELECT feedback, date
+        FROM customer_feedback
+        WHERE product_name = :product_name
+        ORDER BY date
+        """
+        result = await session.execute(text(query), {"product_name": product_name})
         data = result.fetchall()
         return {
             "customer_feedback": [{"date": row.date.strftime("%Y-%m-%d"), "feedback": row.feedback} for row in data]
@@ -195,7 +200,9 @@ async def get_customer_feedback(product_name: str) -> Dict[str, Any]:
 
 # Tool to analyze data
 async def analyze_data(product_name: str, data: Dict[str, Any]) -> Dict[str, Any]:
-    # Analyze sales and customer feedback data for a given product to provide insights.
+    """
+    Analyze sales and customer feedback data for a given product to provide insights.
+    """
     analysis_results = {}
 
     # Analyze sales trends
@@ -275,7 +282,6 @@ Always include necessary data in your handoffs.
 """,
 )
 
-
 # SQL Query Agent
 sql_query_agent = AssistantAgent(
     name="SQLQueryAgent",
@@ -283,13 +289,13 @@ sql_query_agent = AssistantAgent(
     tools=[get_sales_data, get_customer_feedback],
     handoffs=["PlannerAgent"],
     system_message="""
-    You are the SQLQueryAgent.
+You are the SQLQueryAgent.
 
-    - Use the `get_sales_data` tool to retrieve sales data for the specified product.
-    - Use the `get_customer_feedback` tool to retrieve customer feedback for the specified product.
-    - Retrieve sales trends and customer feedback for the specified product.
-    - After execution, include the retrieved data in the HandoffMessage content and return it to PlannerAgent.
-    """,
+- Use the `get_sales_data` tool to retrieve sales data for the specified product.
+- Use the `get_customer_feedback` tool to retrieve customer feedback for the specified product.
+- Retrieve sales trends and customer feedback for the specified product.
+- After execution, include the retrieved data in the HandoffMessage content and return it to PlannerAgent.
+""",
 )
 
 # Data Analysis Agent
@@ -309,7 +315,6 @@ You are the DataAnalysisAgent.
 - Return the analysis results to PlannerAgent in a HandoffMessage.
 """,
 )
-
 
 # Explanation Agent
 explanation_agent = AssistantAgent(
@@ -381,7 +386,6 @@ async def main():
     # Initialize the database with sample data
     await init_db()
 
-    # Define the tasks
     # ---------------------------
     # Team Setup (Swarm)
     # ---------------------------
@@ -421,7 +425,6 @@ async def main():
             model_client.create_results.clear()
 
         except OpenAIChatCompletionClientWrapper.Verification as verification:
-            # If throw_on_create is True and an exception is raised
             await handle_verification(verification)
 
         logger.debug(f"\n--- Completed task: {task} ---\n")
