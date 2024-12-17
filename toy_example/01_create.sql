@@ -7,7 +7,17 @@ CREATE TABLE BOOKS (
     Category VARCHAR(100),
     Publisher VARCHAR(255),
     PublicationDate DATE,
-    Price DECIMAL(10, 2) NOT NULL
+    Price DECIMAL(10, 2) NOT NULL,
+    Cost DECIMAL(10, 2) NOT NULL DEFAULT 0.00
+);
+
+-- Create the SUPPLIERS table
+CREATE TABLE SUPPLIERS (
+    SupplierID INT AUTO_INCREMENT PRIMARY KEY,
+    SupplierName VARCHAR(255) NOT NULL,
+    ContactInfo VARCHAR(255),
+    ReliabilityScore DECIMAL(3,1) DEFAULT 5.0, -- 1.0 to 5.0 scale
+    DeliveryTimeDays INT -- Average delivery time in days
 );
 
 -- Create the INVENTORY table
@@ -28,26 +38,10 @@ CREATE TABLE INVENTORY_ADJUSTMENTS (
     AdjustmentType ENUM('Purchase', 'Sale', 'Obsolescence') NOT NULL,
     QuantityAdjusted INT NOT NULL,
     Reason VARCHAR(255),
-    FOREIGN KEY (BookID) REFERENCES BOOKS(BookID) ON DELETE CASCADE
+    SupplierID INT, -- Allows NULL for non-purchase adjustments
+    FOREIGN KEY (BookID) REFERENCES BOOKS(BookID) ON DELETE CASCADE,
+    FOREIGN KEY (SupplierID) REFERENCES SUPPLIERS(SupplierID) ON DELETE SET NULL
 );
-
--- Create the SUPPLIERS table
-CREATE TABLE SUPPLIERS (
-    SupplierID INT AUTO_INCREMENT PRIMARY KEY,
-    SupplierName VARCHAR(255) NOT NULL,
-    ContactInfo VARCHAR(255),
-    ReliabilityScore DECIMAL(3,1) DEFAULT 5.0, -- 1.0 to 5.0 scale
-    DeliveryTimeDays INT -- Average delivery time in days
-);
-
--- Modify INVENTORY_ADJUSTMENTS to include SupplierID for 'Purchase' adjustments
-ALTER TABLE INVENTORY_ADJUSTMENTS
-ADD SupplierID INT,
-ADD FOREIGN KEY (SupplierID) REFERENCES SUPPLIERS(SupplierID);
-
--- Modify BOOKS table to include Cost
-ALTER TABLE BOOKS
-ADD Cost DECIMAL(10, 2) NOT NULL DEFAULT 0.00;
 
 -- Create the RETURNS table
 CREATE TABLE RETURNS (
