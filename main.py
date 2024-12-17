@@ -439,6 +439,8 @@ async def main():
         "Investigate why Yellow Hat is not popular in our shop.",
     ]
 
+    model_client.set_throw_on_create(True)
+
     # Run the tasks sequentially
     for task in tasks:
         logger.debug(f"--- Starting task: {task} ---\n")
