@@ -1,6 +1,6 @@
 -- Create the BOOKS table
 CREATE TABLE BOOKS (
-    BookID INT AUTO_INCREMENT PRIMARY KEY,
+    BookID INTEGER PRIMARY KEY AUTOINCREMENT,
     Title VARCHAR(255) NOT NULL,
     Author VARCHAR(255),
     ISBN VARCHAR(20) UNIQUE,
@@ -13,7 +13,7 @@ CREATE TABLE BOOKS (
 
 -- Create the SUPPLIERS table
 CREATE TABLE SUPPLIERS (
-    SupplierID INT AUTO_INCREMENT PRIMARY KEY,
+    SupplierID INTEGER PRIMARY KEY AUTOINCREMENT,
     SupplierName VARCHAR(255) NOT NULL,
     ContactInfo VARCHAR(255),
     ReliabilityScore DECIMAL(3,1) DEFAULT 5.0, -- 1.0 to 5.0 scale
@@ -22,7 +22,7 @@ CREATE TABLE SUPPLIERS (
 
 -- Create the INVENTORY table
 CREATE TABLE INVENTORY (
-    BookID INT PRIMARY KEY,
+    BookID INTEGER PRIMARY KEY,
     QuantityOnHand INT NOT NULL DEFAULT 0,
     ReorderLevel INT NOT NULL DEFAULT 0,
     Status VARCHAR(50) NOT NULL DEFAULT 'Active',
@@ -32,10 +32,10 @@ CREATE TABLE INVENTORY (
 
 -- Create the INVENTORY_ADJUSTMENTS table
 CREATE TABLE INVENTORY_ADJUSTMENTS (
-    AdjustmentID INT AUTO_INCREMENT PRIMARY KEY,
+    AdjustmentID INTEGER PRIMARY KEY AUTOINCREMENT,
     BookID INT NOT NULL,
     AdjustmentDate DATE NOT NULL,
-    AdjustmentType ENUM('Purchase', 'Sale', 'Obsolescence') NOT NULL,
+    AdjustmentType TEXT NOT NULL CHECK(AdjustmentType IN ('Purchase', 'Sale', 'Obsolescence')),
     QuantityAdjusted INT NOT NULL,
     Reason VARCHAR(255),
     SupplierID INT, -- Allows NULL for non-purchase adjustments
@@ -45,7 +45,7 @@ CREATE TABLE INVENTORY_ADJUSTMENTS (
 
 -- Create the RETURNS table
 CREATE TABLE RETURNS (
-    ReturnID INT AUTO_INCREMENT PRIMARY KEY,
+    ReturnID INTEGER PRIMARY KEY AUTOINCREMENT,
     BookID INT NOT NULL,
     ReturnDate DATE NOT NULL,
     QuantityReturned INT NOT NULL,
