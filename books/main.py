@@ -338,9 +338,13 @@ async def main():
 
     task = "excess_inventory"
 
+    team = Swarm([analysis_agent], termination_condition=termination_condition)
+    result = await Console(team.run_stream(task=task))
+
     # Run the agent and stream the output
     # await Console(analysis_agent.run_stream(task, termination_condition=termination_condition))
-    result = await Console(analysis_agent.run_stream(task=task))
+    # result = await Console(analysis_agent.run_stream(task=task))
+
     i = 100
 
 
