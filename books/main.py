@@ -46,6 +46,7 @@ import sys
 from datetime import datetime
 from typing import Dict, Any, List
 
+import loguru
 from autogen_agentchat.ui import Console
 from autogen_agentchat.agents import AssistantAgent, BaseChatAgent
 from autogen_agentchat.messages import HandoffMessage
@@ -75,51 +76,6 @@ from util.util import model_client, settings, configure_tracing, OpenAIChatCompl
 
 DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
-# SQL string to create the tables
-create_table_sql = """
--- Create the 'sales' table
-CREATE TABLE sales (
-    id INTEGER PRIMARY KEY,
-    product_name TEXT,
-    color TEXT,
-    size TEXT,
-    quantity_sold INTEGER,
-    date DATE
-);
-
--- Create the 'customer_feedback' table
-CREATE TABLE customer_feedback (
-    id INTEGER PRIMARY KEY,
-    product_name TEXT,
-    feedback TEXT,
-    date DATE
-);
-"""
-
-# SQL string to insert data
-insert_data_sql = """
--- Insert data into 'sales' table
-INSERT INTO sales (id, product_name, color, size, quantity_sold, date) VALUES
-    (1, 'Yellow Hat', 'Yellow', 'Large', 120, '2023-06-01'),
-    (2, 'Yellow Hat', 'Yellow', 'Large', 80, '2023-07-01'),
-    (3, 'Yellow Hat', 'Yellow', 'Large', 40, '2023-08-01'),
-    (4, 'Yellow Hat', 'Yellow', 'Large', 20, '2023-09-01'),
-    (5, 'Black Hat', 'Black', 'Medium', 50, '2023-06-01'),
-    (6, 'Black Hat', 'Black', 'Medium', 60, '2023-07-01'),
-    (7, 'Black Hat', 'Black', 'Medium', 70, '2023-08-01'),
-    (8, 'Black Hat', 'Black', 'Medium', 80, '2023-09-01');
-
--- Insert data into 'customer_feedback' table
-INSERT INTO customer_feedback (id, product_name, feedback, date) VALUES
-    (1, 'Yellow Hat', 'The hat fades after washing.', '2023-07-15'),
-    (2, 'Yellow Hat', 'Size runs too big.', '2023-08-10'),
-    (3, 'Yellow Hat', 'Color is not as vibrant as pictured.', '2023-08-20'),
-    (4, 'Yellow Hat', 'Uncomfortable to wear for long periods.', '2023-09-05'),
-    (5, 'Black Hat', 'Great quality, very comfortable.', '2023-07-12'),
-    (6, 'Black Hat', 'Stylish and fits well.', '2023-08-15'),
-    (7, 'Black Hat', 'Perfect for everyday use.', '2023-09-08');
-"""
-
 # Create async engine
 engine = create_async_engine(DATABASE_URL, echo=False, future=True)
 
@@ -132,6 +88,12 @@ from sqlalchemy.sql import text
 
 # Initialize the database
 async def init_db():
+    # Read SQL scripts from files
+    with open("01_create.sql", "r") as f:
+        create_table_sql = f.read()
+    with open("02_insert.sql", "r") as f:
+        insert_data_sql = f.read()
+
     # Use the async engine to execute SQL statements
     async with engine.begin() as conn:
         # Split the create_table_sql into individual statements and execute them
@@ -144,18 +106,19 @@ async def init_db():
             stmt = stmt.strip()
             if stmt:
                 await conn.execute(text(stmt))
+
     # Optionally, fetch and display data to verify
     async with AsyncSessionLocal() as session:
-        print("Sales Table:")
-        result = await session.execute(text("SELECT * FROM sales"))
-        sales_rows = result.fetchall()
-        for row in sales_rows:
-            print(row)
-        print("\nCustomer Feedback Table:")
-        result = await session.execute(text("SELECT * FROM customer_feedback"))
-        feedback_rows = result.fetchall()
-        for row in feedback_rows:
-            print(row)
+        logger.debug("BOOKS Table:")
+        result = await session.execute(text("SELECT * FROM BOOKS"))
+        books_rows = result.fetchall()
+        for row in books_rows:
+            logger.debug(row)
+        logger.debug("\nINVENTORY Table:")
+        result = await session.execute(text("SELECT * FROM INVENTORY"))
+        inventory_rows = result.fetchall()
+        for row in inventory_rows:
+            logger.debug(row)
 
 
 # ---------------------------
@@ -163,173 +126,81 @@ async def init_db():
 # ---------------------------
 
 
-# Tool to get sales data
-async def get_sales_data(product_name: str) -> Dict[str, Any]:
+# Tool to execute SQL queries loaded from files
+async def execute_sql_query(query_name: str) -> List[Dict[str, Any]]:
     """
-    Retrieve sales data for a given product.
+    Execute an SQL query loaded from a file and return the results.
     """
+    # Map of available query files
+    query_files = {
+        "excess_inventory": "03_query_01_excess.sql",
+        "obsolete_inventory": "03_query_02_obsolete.sql",
+        "top_selling_books": "03_query_03_top_selling.sql",
+        "least_selling_books": "03_query_04_least_selling.sql",
+        "inventory_turnover": "03_query_05_turnover.sql",
+        "stock_aging": "03_query_06_stock_aging.sql",
+        "forecast_demand": "03_query_07_forecast_demand.sql",
+        "supplier_performance": "03_query_08_supplier_performance.sql",
+        "seasonal_trends": "03_query_09_seasonal_trends.sql",
+        "profit_margins": "03_query_10_profit_margins.sql",
+        "warehouse_optimization": "03_query_11_warehouse_space_optimize.sql",
+        "return_rates": "03_query_12_return_reasons.sql",
+    }
+
+    if query_name not in query_files:
+        raise ValueError(f"Query '{query_name}' not found. Available queries: {list(query_files.keys())}")
+
+    query_file = query_files[query_name]
+
+    # Read the SQL query from the file
+    with open(query_file, "r") as f:
+        query_sql = f.read()
+
+    # Execute the SQL query
     async with AsyncSessionLocal() as session:
-        query = """
-        SELECT date, quantity_sold
-        FROM sales
-        WHERE product_name = :product_name
-        ORDER BY date
-        """
-        result = await session.execute(text(query), {"product_name": product_name})
-        data = result.fetchall()
-        return {
-            "sales_data": [{"date": row.date.strftime("%Y-%m-%d"), "quantity_sold": row.quantity_sold} for row in data]
-        }
+        result = await session.execute(text(query_sql))
+        rows = result.fetchall()
 
+        # Get column names from the result cursor
+        column_names = result.keys()
 
-# Tool to get customer feedback
-async def get_customer_feedback(product_name: str) -> Dict[str, Any]:
-    """
-    Retrieve customer feedback for a given product.
-    """
-    async with AsyncSessionLocal() as session:
-        query = """
-        SELECT feedback, date
-        FROM customer_feedback
-        WHERE product_name = :product_name
-        ORDER BY date
-        """
-        result = await session.execute(text(query), {"product_name": product_name})
-        data = result.fetchall()
-        return {
-            "customer_feedback": [{"date": row.date.strftime("%Y-%m-%d"), "feedback": row.feedback} for row in data]
-        }
+        # Convert rows to list of dictionaries
+        data = [dict(zip(column_names, row)) for row in rows]
 
-
-# Tool to analyze data
-async def analyze_data(product_name: str, data: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Analyze sales and customer feedback data for a given product to provide insights.
-    """
-    analysis_results = {}
-
-    # Analyze sales trends
-    if "sales_data" in data:
-        sales = data["sales_data"]
-        quantities = [entry["quantity_sold"] for entry in sales]
-        if len(quantities) >= 2:
-            if quantities[-1] < quantities[0]:
-                analysis_results["sales_trend"] = f"Sales of {product_name} have significantly decreased over time."
-            elif quantities[-1] > quantities[0]:
-                analysis_results["sales_trend"] = f"Sales of {product_name} have increased over time."
-            else:
-                analysis_results["sales_trend"] = f"Sales of {product_name} are stable."
-        else:
-            analysis_results["sales_trend"] = "Not enough data to determine sales trends."
-    else:
-        analysis_results["sales_trend"] = "Sales data not provided."
-
-    # Analyze customer feedback
-    if "customer_feedback" in data:
-        feedback_list = data["customer_feedback"]
-        negative_feedback = []
-        for feedback in feedback_list:
-            if any(
-                keyword in feedback["feedback"].lower()
-                for keyword in [
-                    "fade",
-                    "size",
-                    "color",
-                    "uncomfortable",
-                    "not as pictured",
-                    "runs too big",
-                    "not",
-                    "too",
-                    "faded",
-                    "issues",
-                    "problem",
-                    "dislike",
-                    "unhappy",
-                    "poor",
-                    "bad",
-                ]
-            ):
-                negative_feedback.append(feedback)
-        if negative_feedback:
-            analysis_results["customer_feedback_analysis"] = (
-                f"Customer feedback for {product_name} indicates issues with product quality: {len(negative_feedback)} instances."
-            )
-        else:
-            analysis_results["customer_feedback_analysis"] = (
-                f"Customer feedback for {product_name} is generally positive."
-            )
-    else:
-        analysis_results["customer_feedback_analysis"] = "Customer feedback data not provided."
-
-    return analysis_results
+    return data
 
 
 # ---------------------------
 # Agents
 # ---------------------------
 
-# Planner Agent
-planner_agent = AssistantAgent(
-    name="PlannerAgent",
+# Analysis Agent
+analysis_agent = AssistantAgent(
+    name="AnalysisAgent",
     model_client=model_client,
-    handoffs=["SQLQueryAgent", "DataAnalysisAgent", "ExplanationAgent"],
+    tools=[execute_sql_query],
     system_message="""
-You are the PlannerAgent. Your role is to coordinate the investigation to understand issues with any product.
+You are the AnalysisAgent. Your role is to analyze the bookstore's database and provide recommendations to improve excess inventory, obsolescence, and other metrics.
 
-- **Step 1**: Ask the SQLQueryAgent to retrieve sales data and customer feedback for the specified product.
-- **Step 2**: When you receive data from SQLQueryAgent, include this data in the `HandoffMessage` content when sending it to DataAnalysisAgent. The content should be a JSON object containing `product_name` and `data`.
-- **Step 3**: Request the DataAnalysisAgent to analyze the data.
-- **Step 4**: Send the analysis results to ExplanationAgent for generating a comprehensive explanation.
+- Use the `execute_sql_query` tool to run SQL queries loaded from files.
+- The available queries are:
 
-Always include necessary data in your handoffs.
-""",
-)
+    - 'excess_inventory': Identify excess inventory.
+    - 'obsolete_inventory': Identify obsolete inventory.
+    - 'top_selling_books': Identify top-selling books.
+    - 'least_selling_books': Identify least-selling books.
+    - 'inventory_turnover': Calculate inventory turnover ratios.
+    - 'stock_aging': Analyze stock aging.
+    - 'forecast_demand': Forecast demand.
+    - 'supplier_performance': Evaluate supplier performance.
+    - 'seasonal_trends': Identify seasonal sales trends.
+    - 'profit_margins': Monitor profit margins.
+    - 'warehouse_optimization': Optimize warehouse space.
+    - 'return_rates': Track return rates and reasons.
 
-# SQL Query Agent
-sql_query_agent = AssistantAgent(
-    name="SQLQueryAgent",
-    model_client=model_client,
-    tools=[get_sales_data, get_customer_feedback],
-    handoffs=["PlannerAgent"],
-    system_message="""
-You are the SQLQueryAgent.
-
-- Use the `get_sales_data` tool to retrieve sales data for the specified product.
-- Use the `get_customer_feedback` tool to retrieve customer feedback for the specified product.
-- Retrieve sales trends and customer feedback for the specified product.
-- After execution, include the retrieved data in the HandoffMessage content and return it to PlannerAgent.
-""",
-)
-
-# Data Analysis Agent
-data_analysis_agent = AssistantAgent(
-    name="DataAnalysisAgent",
-    model_client=model_client,
-    tools=[analyze_data],
-    handoffs=["PlannerAgent"],
-    system_message="""
-You are the DataAnalysisAgent.
-
-- Receive data from PlannerAgent via `HandoffMessage` content.
-- The content will be a JSON object containing `product_name` and `data`.
-- Before calling `analyze_data`, check if both `product_name` and `data` are present.
-- If any are missing, inform `PlannerAgent` about the missing information.
-- Use the `analyze_data` tool by providing `product_name` and `data` as arguments.
-- Return the analysis results to PlannerAgent in a HandoffMessage.
-""",
-)
-
-# Explanation Agent
-explanation_agent = AssistantAgent(
-    name="ExplanationAgent",
-    model_client=model_client,
-    handoffs=[],
-    system_message="""
-You are the ExplanationAgent.
-
-- Generate a clear and comprehensive explanation based on the analysis results.
-- Provide actionable insights and recommendations to improve the product's performance.
-- Once done, reply directly to the user and mention 'TERMINATE' to end the conversation.
+- After executing a query, analyze the results and provide actionable recommendations to the user.
+- Do not include the SQL code or raw data in your responses. Focus on the analysis and recommendations.
+- When you have completed your analysis, respond with 'TERMINATE' to end the conversation.
 """,
 )
 
@@ -343,188 +214,160 @@ termination_condition = TextMentionTermination("TERMINATE")
 # Execution
 # ---------------------------
 
+#
+# # Define a custom function to handle verification exceptions
+# async def handle_verification(verification, expected_function_calls):
+#     if isinstance(verification, OpenAIChatCompletionClientWrapper.FunctionCallVerification):
+#         # Handle function call verification
+#         actual_function_calls = []
+#         for function_call_record in verification.function_calls:
+#             function_name = function_call_record.function_name
+#             arguments = function_call_record.arguments
+#             logger.debug(f"Function called: {function_name} with arguments: {arguments}")
+#             actual_function_calls.append({"name": function_name, "arguments": arguments})
+#
+#         # Compare actual function calls with expected function calls
+#         if actual_function_calls == expected_function_calls:
+#             logger.debug("Function calls match the expected function calls.")
+#         else:
+#             logger.debug("Function calls do not match the expected function calls.")
+#             logger.debug("Expected:")
+#             logger.debug(json.dumps(expected_function_calls, indent=2))
+#             logger.debug("Actual:")
+#             logger.debug(json.dumps(actual_function_calls, indent=2))
+#     elif isinstance(verification, OpenAIChatCompletionClientWrapper.TextResultVerification):
+#         # Handle text result verification
+#         content = verification.content
+#         logger.debug(f"Text content: {content}")
+#         # Implement your business logic based on the text content
+#     else:
+#         # Handle unexpected verification types
+#         raise Exception("Unknown verification type.")
 
-# Define a custom function to handle verification exceptions
-async def handle_verification(verification, expected_function_calls):
-    if isinstance(verification, OpenAIChatCompletionClientWrapper.FunctionCallVerification):
-        # Handle function call verification
-        actual_function_calls = []
-        for function_call_record in verification.function_calls:
-            function_name = function_call_record.function_name
-            arguments = function_call_record.arguments
-            print(f"Function called: {function_name} with arguments: {arguments}")
-            actual_function_calls.append({"name": function_name, "arguments": arguments})
-
-        # Compare actual function calls with expected function calls
-        if actual_function_calls == expected_function_calls:
-            print("Function calls match the expected function calls.")
-        else:
-            print("Function calls do not match the expected function calls.")
-            print("Expected:")
-            print(json.dumps(expected_function_calls, indent=2))
-            print("Actual:")
-            print(json.dumps(actual_function_calls, indent=2))
-    elif isinstance(verification, OpenAIChatCompletionClientWrapper.TextResultVerification):
-        # Handle text result verification
-        content = verification.content
-        print(f"Text content: {content}")
-        # Implement your business logic based on the text content
-    else:
-        # Handle unexpected verification types
-        raise Exception("Unknown verification type.")
-
-
-class TestGeneratorAgent(AssistantAgent):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.system_message = """
-You are a TestGeneratorAgent. Your role is to analyze another agent's system description and its tools, and generate testing tasks for it.
-
-Given an agent's description and tools, you should:
-
-- Read the agent's system message to understand its role and behavior.
-- Examine the tools the agent uses, including their names and parameters.
-- Generate a list of tasks that will effectively test the agent's functionality by invoking its tools with various parameters.
-- For each task, specify the expected function calls, including function name and arguments.
-
-Your output should be a Python list of dictionaries, where each dictionary contains:
-
-- 'task': A description of the task to be performed.
-- 'expected_function_calls': A list of dictionaries, each with 'name' and 'arguments' keys, representing the function calls that the agent is expected to make when performing the task.
-
-Output the list of tasks in valid Python code.
-"""
-
-    async def generate_tasks(self, agent_to_test: BaseChatAgent) -> List[Dict[str, Any]]:
-        # Analyze the agent's description and tools to generate tasks
-        tasks = []
-
-        # Extract the tools and their parameter names
-        tools = agent_to_test.tools
-        # We'll assume that all tools require 'product_name' as a parameter based on your context
-        # But we'll actually extract the parameter names from the tool signatures for generality
-
-        # Generate a set of realistic product names for testing
-        product_names = ["Black Hat", "Yellow Hat", "Red Hat"]
-
-        for product_name in product_names:
-            # Describe the task
-            task_description = f"Retrieve sales data and customer feedback for {product_name}."
-            expected_function_calls = []
-            for tool in tools:
-                function_name = tool.name
-                # Extract parameter names from the tool's signature
-                signature = inspect.signature(tool.func)
-                parameters = signature.parameters
-
-                arguments = {}
-                for param in parameters.values():
-                    if param.name == "product_name":
-                        arguments["product_name"] = product_name
-                    else:
-                        arguments[param.name] = f"<{param.name}>"
-
-                expected_function_calls.append({"name": function_name, "arguments": arguments})
-            tasks.append(
-                {
-                    "task": task_description,
-                    "expected_function_calls": expected_function_calls,
-                }
-            )
-
-        return tasks
+#
+# class TestGeneratorAgent(AssistantAgent):
+#     def __init__(self, **kwargs):
+#         super().__init__(**kwargs)
+#         self.system_message = """
+# You are a TestGeneratorAgent. Your role is to analyze another agent's system description and its tools, and generate testing tasks for it.
+#
+# Given an agent's description and tools, you should:
+#
+# - Read the agent's system message to understand its role and behavior.
+# - Examine the tools the agent uses, including their names and parameters.
+# - Generate a list of tasks that will effectively test the agent's functionality by invoking its tools with various parameters.
+# - For each task, specify the expected function calls, including function name and arguments.
+#
+# Your output should be a Python list of dictionaries, where each dictionary contains:
+#
+# - 'task': A description of the task to be performed.
+# - 'expected_function_calls': A list of dictionaries, each with 'name' and 'arguments' keys, representing the function calls that the agent is expected to make when performing the task.
+#
+# Output the list of tasks in valid Python code.
+# """
+#
+#     async def generate_tasks(self, agent_to_test: BaseChatAgent) -> List[Dict[str, Any]]:
+#         # Analyze the agent's description and tools to generate tasks
+#         tasks = []
+#
+#         # Extract the tools and their parameter names
+#         tools = agent_to_test.tools
+#         # We'll assume that all tools require 'product_name' as a parameter based on your context
+#         # But we'll actually extract the parameter names from the tool signatures for generality
+#
+#         # Generate a set of realistic product names for testing
+#         product_names = ["Black Hat", "Yellow Hat", "Red Hat"]
+#
+#         for product_name in product_names:
+#             # Describe the task
+#             task_description = f"Retrieve sales data and customer feedback for {product_name}."
+#             expected_function_calls = []
+#             for tool in tools:
+#                 function_name = tool.name
+#                 # Extract parameter names from the tool's signature
+#                 signature = inspect.signature(tool.func)
+#                 parameters = signature.parameters
+#
+#                 arguments = {}
+#                 for param in parameters.values():
+#                     if param.name == "product_name":
+#                         arguments["product_name"] = product_name
+#                     else:
+#                         arguments[param.name] = f"<{param.name}>"
+#
+#                 expected_function_calls.append({"name": function_name, "arguments": arguments})
+#             tasks.append(
+#                 {
+#                     "task": task_description,
+#                     "expected_function_calls": expected_function_calls,
+#                 }
+#             )
+#
+#         return tasks
 
 
 async def main():
-    langfuse = Langfuse(
-        secret_key=settings.langfuse_secret_key,
-        public_key=settings.langfuse_public_key,
-        host=settings.langfuse_host,
-    )
-    logger.info(f"Langfuse host: {langfuse.base_url}")
-    logger.info(f"Langfuse project_id: {langfuse.project_id}")
-
-    tracer_provider = configure_tracing(langfuse_client=langfuse)
-    runtime = SingleThreadedAgentRuntime(tracer_provider=tracer_provider)
-
-    # Configure loguru
-    logger.remove()  # Remove default handler
+    # Initialize logging
+    logger.remove()
     logger.add(
         sys.stderr,
         format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
         "<level>{level: <8}</level> | "
-        "<cyan>{module}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
         "<level>{message}</level>",
         level="DEBUG",
     )
 
-    # Initialize the database with sample data
+    # Initialize the database
     await init_db()
 
-    # ---------------------------
-    # Team Setup (Swarm)
-    # ---------------------------
+    # Set up the agent runtime
+    runtime = SingleThreadedAgentRuntime()
+    analysis_agent._runtime = runtime
 
-    # team = Swarm(
-    #     participants=[
-    #         planner_agent,
-    #         sql_query_agent,
-    #         data_analysis_agent,
-    #         explanation_agent,
-    #     ],
-    #     termination_condition=termination_condition,
-    # )
+    # Start the agent interaction
+    logger.debug("\nWelcome to the Bookstore Inventory Analysis Tool!")
+    logger.debug("You can ask the agent to analyze various aspects of your inventory.")
+    logger.debug("Type 'TERMINATE' to end the conversation.\n")
 
-    team = sql_query_agent
+    while True:
+        user_input = input("Please enter your request: ")
+        if user_input.strip().upper() == "TERMINATE":
+            logger.debug("Conversation terminated.")
+            break
 
-    team._runtime = runtime
-
-    tasks = [
-        {
-            "task": "Investigate why Black Hat is becoming more popular in our shop.",
-            "expected_function_calls": [
-                {"name": "get_sales_data", "arguments": {"product_name": "Black Hat"}},
-                {"name": "get_customer_feedback", "arguments": {"product_name": "Black Hat"}},
-            ],
-        },
-        {
-            "task": "Investigate why Yellow Hat is not popular in our shop.",
-            "expected_function_calls": [
-                {"name": "get_sales_data", "arguments": {"product_name": "Yellow Hat"}},
-                {"name": "get_customer_feedback", "arguments": {"product_name": "Yellow Hat"}},
-            ],
-        },
-    ]
-
-    model_client.set_throw_on_create(True)
-
-    saved_state = await team.save_state()
-
-    # Run the tasks sequentially
-    for task_entry in tasks:
-        task_text = task_entry["task"]
-        expected_function_calls = task_entry["expected_function_calls"]
-
-        logger.debug(f"--- Starting task: {task_text} ---\n")
-
-        try:
-            # Run the team and capture the output
-            await Console(team.run_stream(task=task_text))
-
-            # After running, check the verification results
-            for verification in model_client.create_results:
-                await handle_verification(verification)
-
-            # Clear the create_results after handling
-            model_client.create_results.clear()
-
-        except OpenAIChatCompletionClientWrapper.Verification as verification:
-            await handle_verification(verification, expected_function_calls)
-
-        logger.debug(f"\n--- Completed task: {task_text} ---\n")
-        # await team.reset()  # Reset the team state before each task
-        await team.load_state(saved_state)
+        # Run the agent and stream the output
+        await Console(analysis_agent.run_stream(user_input, termination_condition=termination_condition))
 
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+# model_client.set_throw_on_create(True)
+#
+# saved_state = await team.save_state()
+#
+# # Run the tasks sequentially
+# for task_entry in tasks:
+#     task_text = task_entry["task"]
+#     expected_function_calls = task_entry["expected_function_calls"]
+#
+#     logger.debug(f"--- Starting task: {task_text} ---\n")
+#
+#     try:
+#         # Run the team and capture the output
+#         await Console(team.run_stream(task=task_text))
+#
+#         # After running, check the verification results
+#         for verification in model_client.create_results:
+#             await handle_verification(verification)
+#
+#         # Clear the create_results after handling
+#         model_client.create_results.clear()
+#
+#     except OpenAIChatCompletionClientWrapper.Verification as verification:
+#         await handle_verification(verification, expected_function_calls)
+#
+#     logger.debug(f"\n--- Completed task: {task_text} ---\n")
+#     # await team.reset()  # Reset the team state before each task
+#     await team.load_state(saved_state)
