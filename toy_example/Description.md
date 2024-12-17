@@ -69,5 +69,6 @@ With this correction, the Mermaid ER diagram should parse correctly and visually
   - **QuantityAdjusted**: The number of units adjusted.
   - **Reason**: A description or reason for the adjustment.
 
-**Note:** In ER diagrams using Mermaid, when you define relationships between entities, the foreign key relationships are implicitly understood through those relationships. Therefore, you don't need to annotate `FK` on attributes already involved in relationships, especially when they are also `PK`. This is why removing the `FK` from `int BookID PK FK` resolves the parsing error.
+
+[//]: # (Please write creation SQL scripts for those tables + different script with sample data to insert to be able to reason later about excess and obsolence)
 
