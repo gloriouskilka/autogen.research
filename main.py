@@ -57,6 +57,7 @@ from loguru import logger
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 import sqlalchemy as sa
+from setuptools.command.saveopts import saveopts
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Column, Integer, String, Date, Text
@@ -390,15 +391,17 @@ async def main():
     # Team Setup (Swarm)
     # ---------------------------
 
-    team = Swarm(
-        participants=[
-            planner_agent,
-            sql_query_agent,
-            data_analysis_agent,
-            explanation_agent,
-        ],
-        termination_condition=termination_condition,
-    )
+    # team = Swarm(
+    #     participants=[
+    #         planner_agent,
+    #         sql_query_agent,
+    #         data_analysis_agent,
+    #         explanation_agent,
+    #     ],
+    #     termination_condition=termination_condition,
+    # )
+
+    team = sql_query_agent
 
     team._runtime = runtime
 
@@ -408,6 +411,8 @@ async def main():
     ]
 
     model_client.set_throw_on_create(True)
+
+    saved_state = await team.save_state()
 
     # Run the tasks sequentially
     for task in tasks:
@@ -428,7 +433,8 @@ async def main():
             await handle_verification(verification)
 
         logger.debug(f"\n--- Completed task: {task} ---\n")
-        await team.reset()  # Reset the team state before each task
+        # await team.reset()  # Reset the team state before each task
+        await team.load_state(saved_state)
 
 
 if __name__ == "__main__":
