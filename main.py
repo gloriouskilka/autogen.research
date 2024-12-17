@@ -1,3 +1,44 @@
+# About the framework used:
+# AutoGen 0.4 is an open-source framework for building AI agent systems, enabling the creation of event-driven, distributed, scalable, and resilient agentic applications.
+# GITHUB
+#
+# Key Components:
+#
+# Agents: Core entities that perform tasks, process messages, and interact with other agents. Agents can be equipped with tools and are responsible for handling specific functions within the system.
+#
+# Agent Runtime: The execution environment managing agent lifecycles and facilitating communication between agents. It ensures agents operate seamlessly, supporting both local and distributed setups.
+#
+# Messages: The primary means of communication between agents, enabling asynchronous interactions and coordination.
+#
+# Tools: Functions or utilities that agents can utilize to perform specific actions, such as executing code or retrieving data. Tools enhance agent capabilities by providing additional functionalities.
+#
+# Model Clients: Interfaces that allow agents to interact with Large Language Models (LLMs) for tasks like generating text or processing natural language inputs. These clients enable agents to leverage LLMs effectively.
+#
+# LLM Integration:
+#
+# Agents utilize LLMs through model clients, which process inputs such as function names, parameter names, and tool descriptions. This integration enables agents to generate appropriate responses, make decisions, and perform tasks based on natural language inputs.
+#
+# Combining Agents:
+#
+# Chats: Agents can be organized into teams that communicate via asynchronous messaging, supporting both event-driven and request/response interaction patterns. This setup allows agents to collaborate on tasks, share information, and coordinate actions.
+#
+# Message Passing: Agents interact by sending and receiving messages, enabling complex workflows and decision-making processes. The framework supports both direct messaging (similar to RPC) and broadcasting to topics (pub-sub), facilitating flexible communication strategies.
+#
+# Example Workflow:
+#
+# Agent Registration: Agents are registered with the runtime, specifying their types and associated factory functions for instantiation.
+#
+# Message Handling: Agents define handlers for specific message types, enabling them to process incoming messages and perform corresponding actions.
+#
+# Tool Usage: Agents can be equipped with tools, allowing them to execute functions or access external services as needed.
+#
+# LLM Interaction: Through model clients, agents can process natural language inputs, generate responses, and make informed decisions based on LLM outputs.
+#
+# Communication: Agents communicate by sending messages to each other, coordinating tasks, sharing information, and collaborating to achieve system objectives.
+#
+# This architecture allows developers to build sophisticated AI systems where agents work together, leveraging LLMs and tools to perform complex tasks efficiently.
+
+
 import asyncio
 import sys
 from datetime import datetime
@@ -48,153 +89,58 @@ DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 #     }
 #     sales ||--o{ customer_feedback : "receives"
 
-metadata = sa.MetaData()
 
-# Define tables
-sales_table = sa.Table(
-    "sales",
-    metadata,
-    sa.Column("id", sa.Integer, primary_key=True),
-    sa.Column("product_name", sa.String),
-    sa.Column("color", sa.String),
-    sa.Column("size", sa.String),
-    sa.Column("quantity_sold", sa.Integer),
-    sa.Column("date", sa.Date),
-)
+# SQL string to create the tables (creation of structure based on mermaid diagrams)
+create_table_sql = """
+-- Create the 'sales' table
+CREATE TABLE sales (
+    id INTEGER PRIMARY KEY,
+    product_name TEXT,
+    color TEXT,
+    size TEXT,
+    quantity_sold INTEGER,
+    date DATE
+);
 
-customer_feedback_table = sa.Table(
-    "customer_feedback",
-    metadata,
-    sa.Column("id", sa.Integer, primary_key=True),
-    sa.Column("product_name", sa.String),
-    sa.Column("feedback", sa.String),
-    sa.Column("date", sa.Date),
-)
+-- Create the 'customer_feedback' table
+CREATE TABLE customer_feedback (
+    id INTEGER PRIMARY KEY,
+    product_name TEXT,
+    feedback TEXT,
+    date DATE
+);
+"""
+
+# SQL string to insert data (filling in the data)
+insert_data_sql = """
+-- Insert data into 'sales' table
+INSERT INTO sales (id, product_name, color, size, quantity_sold, date) VALUES
+    (1, 'Yellow Hat', 'Yellow', 'Large', 120, '2023-06-01'),
+    (2, 'Yellow Hat', 'Yellow', 'Large', 80, '2023-07-01'),
+    (3, 'Yellow Hat', 'Yellow', 'Large', 40, '2023-08-01'),
+    (4, 'Yellow Hat', 'Yellow', 'Large', 20, '2023-09-01'),
+    (5, 'Black Hat', 'Black', 'Medium', 50, '2023-06-01'),
+    (6, 'Black Hat', 'Black', 'Medium', 60, '2023-07-01'),
+    (7, 'Black Hat', 'Black', 'Medium', 70, '2023-08-01'),
+    (8, 'Black Hat', 'Black', 'Medium', 80, '2023-09-01');
+
+-- Insert data into 'customer_feedback' table
+INSERT INTO customer_feedback (id, product_name, feedback, date) VALUES
+    (1, 'Yellow Hat', 'The hat fades after washing.', '2023-07-15'),
+    (2, 'Yellow Hat', 'Size runs too big.', '2023-08-10'),
+    (3, 'Yellow Hat', 'Color is not as vibrant as pictured.', '2023-08-20'),
+    (4, 'Yellow Hat', 'Uncomfortable to wear for long periods.', '2023-09-05'),
+    (5, 'Black Hat', 'Great quality, very comfortable.', '2023-07-12'),
+    (6, 'Black Hat', 'Stylish and fits well.', '2023-08-15'),
+    (7, 'Black Hat', 'Perfect for everyday use.', '2023-09-08');
+"""
+
 
 # Create async engine
 engine = create_async_engine(DATABASE_URL, echo=False, future=True)
 
 # Create session factory
 AsyncSessionLocal = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-
-
-# Initialize database and populate with sample data
-async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(metadata.create_all)
-
-    async with AsyncSessionLocal() as session:
-        # Sample sales data for Yellow Hats
-        yellow_hat_sales = [
-            {
-                "product_name": "Yellow Hat",
-                "color": "Yellow",
-                "size": "Large",
-                "quantity_sold": 120,
-                "date": datetime.strptime("2023-06-01", "%Y-%m-%d").date(),
-            },
-            {
-                "product_name": "Yellow Hat",
-                "color": "Yellow",
-                "size": "Large",
-                "quantity_sold": 80,
-                "date": datetime.strptime("2023-07-01", "%Y-%m-%d").date(),
-            },
-            {
-                "product_name": "Yellow Hat",
-                "color": "Yellow",
-                "size": "Large",
-                "quantity_sold": 40,
-                "date": datetime.strptime("2023-08-01", "%Y-%m-%d").date(),
-            },
-            {
-                "product_name": "Yellow Hat",
-                "color": "Yellow",
-                "size": "Large",
-                "quantity_sold": 20,
-                "date": datetime.strptime("2023-09-01", "%Y-%m-%d").date(),
-            },
-        ]
-
-        # Sample sales data for Black Hats
-        black_hat_sales = [
-            {
-                "product_name": "Black Hat",
-                "color": "Black",
-                "size": "Medium",
-                "quantity_sold": 50,
-                "date": datetime.strptime("2023-06-01", "%Y-%m-%d").date(),
-            },
-            {
-                "product_name": "Black Hat",
-                "color": "Black",
-                "size": "Medium",
-                "quantity_sold": 60,
-                "date": datetime.strptime("2023-07-01", "%Y-%m-%d").date(),
-            },
-            {
-                "product_name": "Black Hat",
-                "color": "Black",
-                "size": "Medium",
-                "quantity_sold": 70,
-                "date": datetime.strptime("2023-08-01", "%Y-%m-%d").date(),
-            },
-            {
-                "product_name": "Black Hat",
-                "color": "Black",
-                "size": "Medium",
-                "quantity_sold": 80,
-                "date": datetime.strptime("2023-09-01", "%Y-%m-%d").date(),
-            },
-        ]
-
-        # Sample customer feedback data for Yellow Hats
-        yellow_hat_feedback = [
-            {
-                "product_name": "Yellow Hat",
-                "feedback": "The hat fades after washing.",
-                "date": datetime.strptime("2023-07-15", "%Y-%m-%d").date(),
-            },
-            {
-                "product_name": "Yellow Hat",
-                "feedback": "Size runs too big.",
-                "date": datetime.strptime("2023-08-10", "%Y-%m-%d").date(),
-            },
-            {
-                "product_name": "Yellow Hat",
-                "feedback": "Color is not as vibrant as pictured.",
-                "date": datetime.strptime("2023-08-20", "%Y-%m-%d").date(),
-            },
-            {
-                "product_name": "Yellow Hat",
-                "feedback": "Uncomfortable to wear for long periods.",
-                "date": datetime.strptime("2023-09-05", "%Y-%m-%d").date(),
-            },
-        ]
-
-        # Sample customer feedback data for Black Hats
-        black_hat_feedback = [
-            {
-                "product_name": "Black Hat",
-                "feedback": "Great quality, very comfortable.",
-                "date": datetime.strptime("2023-07-12", "%Y-%m-%d").date(),
-            },
-            {
-                "product_name": "Black Hat",
-                "feedback": "Stylish and fits well.",
-                "date": datetime.strptime("2023-08-15", "%Y-%m-%d").date(),
-            },
-            {
-                "product_name": "Black Hat",
-                "feedback": "Perfect for everyday use.",
-                "date": datetime.strptime("2023-09-08", "%Y-%m-%d").date(),
-            },
-        ]
-
-        # Insert data
-        await session.execute(sales_table.insert(), yellow_hat_sales + black_hat_sales)
-        await session.execute(customer_feedback_table.insert(), yellow_hat_feedback + black_hat_feedback)
-        await session.commit()
 
 
 # Input -> mermaid diagram of DB tables
