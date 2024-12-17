@@ -182,43 +182,51 @@ async def init_db():
 # Input -> mermaid diagram of DB tables
 
 
-# Tool to execute SQL queries
-async def execute_sql_query(query_name: str, product_name: str) -> Dict[str, Any]:
-    # Execute predefined SQL queries to retrieve sales or customer feedback data for a given product.
+# ---------------------------
+# Tools
+# ---------------------------
 
+
+# Tool to get sales data
+async def get_sales_data(product_name: str) -> Dict[str, Any]:
+    """
+    Retrieve sales data for a given product.
+    """
     async with AsyncSessionLocal() as session:
-        if query_name == "get_sales_data":
-            stmt = (
-                select(
-                    sales_table.c.date,
-                    sales_table.c.quantity_sold,
-                )
-                .where(sales_table.c.product_name == product_name)
-                .order_by(sales_table.c.date)
+        stmt = (
+            select(
+                sales_table.c.date,
+                sales_table.c.quantity_sold,
             )
-            result = await session.execute(stmt)
-            data = result.fetchall()
-            return {
-                "sales_data": [
-                    {"date": row.date.strftime("%Y-%m-%d"), "quantity_sold": row.quantity_sold} for row in data
-                ]
-            }
-        elif query_name == "get_customer_feedback":
-            stmt = (
-                select(
-                    customer_feedback_table.c.feedback,
-                    customer_feedback_table.c.date,
-                )
-                .where(customer_feedback_table.c.product_name == product_name)
-                .order_by(customer_feedback_table.c.date)
+            .where(sales_table.c.product_name == product_name)
+            .order_by(sales_table.c.date)
+        )
+        result = await session.execute(stmt)
+        data = result.fetchall()
+        return {
+            "sales_data": [{"date": row.date.strftime("%Y-%m-%d"), "quantity_sold": row.quantity_sold} for row in data]
+        }
+
+
+# Tool to get customer feedback
+async def get_customer_feedback(product_name: str) -> Dict[str, Any]:
+    """
+    Retrieve customer feedback for a given product.
+    """
+    async with AsyncSessionLocal() as session:
+        stmt = (
+            select(
+                customer_feedback_table.c.feedback,
+                customer_feedback_table.c.date,
             )
-            result = await session.execute(stmt)
-            data = result.fetchall()
-            return {
-                "customer_feedback": [{"date": row.date.strftime("%Y-%m-%d"), "feedback": row.feedback} for row in data]
-            }
-        else:
-            return {"error": f"Unknown query name: {query_name}"}
+            .where(customer_feedback_table.c.product_name == product_name)
+            .order_by(customer_feedback_table.c.date)
+        )
+        result = await session.execute(stmt)
+        data = result.fetchall()
+        return {
+            "customer_feedback": [{"date": row.date.strftime("%Y-%m-%d"), "feedback": row.feedback} for row in data]
+        }
 
 
 # Tool to analyze data
@@ -308,15 +316,16 @@ Always include necessary data in your handoffs.
 sql_query_agent = AssistantAgent(
     name="SQLQueryAgent",
     model_client=model_client,
-    tools=[execute_sql_query],
+    tools=[get_sales_data, get_customer_feedback],
     handoffs=["PlannerAgent"],
     system_message="""
-You are the SQLQueryAgent.
+    You are the SQLQueryAgent.
 
-- Use the `execute_sql_query` tool to run predefined queries: "get_sales_data" or "get_customer_feedback".
-- Retrieve sales trends and customer feedback for the specified product.
-- After execution, include the retrieved data in the HandoffMessage content and return it to PlannerAgent.
-""",
+    - Use the `get_sales_data` tool to retrieve sales data for the specified product.
+    - Use the `get_customer_feedback` tool to retrieve customer feedback for the specified product.
+    - Retrieve sales trends and customer feedback for the specified product.
+    - After execution, include the retrieved data in the HandoffMessage content and return it to PlannerAgent.
+    """,
 )
 
 # Data Analysis Agent
