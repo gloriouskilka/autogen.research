@@ -40,13 +40,14 @@
 
 
 import asyncio
+import inspect
 import json
 import sys
 from datetime import datetime
 from typing import Dict, Any, List
 
 from autogen_agentchat.ui import Console
-from autogen_agentchat.agents import AssistantAgent
+from autogen_agentchat.agents import AssistantAgent, BaseChatAgent
 from autogen_agentchat.messages import HandoffMessage
 from autogen_agentchat.teams import Swarm
 from autogen_agentchat.conditions import TextMentionTermination
@@ -371,6 +372,67 @@ async def handle_verification(verification, expected_function_calls):
     else:
         # Handle unexpected verification types
         raise Exception("Unknown verification type.")
+
+
+class TestGeneratorAgent(AssistantAgent):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.system_message = """
+You are a TestGeneratorAgent. Your role is to analyze another agent's system description and its tools, and generate testing tasks for it.
+
+Given an agent's description and tools, you should:
+
+- Read the agent's system message to understand its role and behavior.
+- Examine the tools the agent uses, including their names and parameters.
+- Generate a list of tasks that will effectively test the agent's functionality by invoking its tools with various parameters.
+- For each task, specify the expected function calls, including function name and arguments.
+
+Your output should be a Python list of dictionaries, where each dictionary contains:
+
+- 'task': A description of the task to be performed.
+- 'expected_function_calls': A list of dictionaries, each with 'name' and 'arguments' keys, representing the function calls that the agent is expected to make when performing the task.
+
+Output the list of tasks in valid Python code.
+"""
+
+    async def generate_tasks(self, agent_to_test: BaseChatAgent) -> List[Dict[str, Any]]:
+        # Analyze the agent's description and tools to generate tasks
+        tasks = []
+
+        # Extract the tools and their parameter names
+        tools = agent_to_test.tools
+        # We'll assume that all tools require 'product_name' as a parameter based on your context
+        # But we'll actually extract the parameter names from the tool signatures for generality
+
+        # Generate a set of realistic product names for testing
+        product_names = ["Black Hat", "Yellow Hat", "Red Hat"]
+
+        for product_name in product_names:
+            # Describe the task
+            task_description = f"Retrieve sales data and customer feedback for {product_name}."
+            expected_function_calls = []
+            for tool in tools:
+                function_name = tool.name
+                # Extract parameter names from the tool's signature
+                signature = inspect.signature(tool.func)
+                parameters = signature.parameters
+
+                arguments = {}
+                for param in parameters.values():
+                    if param.name == "product_name":
+                        arguments["product_name"] = product_name
+                    else:
+                        arguments[param.name] = f"<{param.name}>"
+
+                expected_function_calls.append({"name": function_name, "arguments": arguments})
+            tasks.append(
+                {
+                    "task": task_description,
+                    "expected_function_calls": expected_function_calls,
+                }
+            )
+
+        return tasks
 
 
 async def main():
