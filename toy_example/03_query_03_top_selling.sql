@@ -16,14 +16,14 @@ ORDER BY
     TotalUnitsSold DESC
 LIMIT 10;
 
- /*
- Explanation:
- - **SUM with CASE Statement**: Explicitly sums only 'Sale' adjustments to calculate `TotalUnitsSold` and `TotalRevenue`.
- - **COALESCE**: Handles books with no sales by defaulting sums to zero.
- - **LIMIT 10**: Retrieves the top 10 best-selling books.
+/*
+Explanation:
+- **SUM with CASE Statement**: Explicitly sums only 'Sale' adjustments to calculate `TotalUnitsSold` and `TotalRevenue`.
+- **COALESCE**: Handles books with no sales by defaulting sums to zero.
+- **LIMIT 10**: Retrieves the top 10 best-selling books.
 
- Actionable Steps:
- - **Stock Optimization**: Increase inventory levels for top sellers to meet demand.
- - **Marketing Focus**: Allocate more marketing resources towards promoting these high-performing books.
- - **Supplier Negotiations**: Leverage sales data to negotiate better terms or discounts with suppliers for high-demand items.
- */
+Actionable Steps:
+- **Stock Optimization**: Increase inventory levels for top sellers to meet demand.
+- **Marketing Focus**: Allocate more marketing resources towards promoting these high-performing books.
+- **Supplier Negotiations**: Leverage sales data to negotiate better terms or discounts with suppliers for high-demand items.
+*/

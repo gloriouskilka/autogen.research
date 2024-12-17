@@ -32,25 +32,11 @@ HAVING
 ORDER BY
     i.BookID;
 
- /*
- Explanation:
- - **LEFT JOIN** with `INVENTORY_ADJUSTMENTS` filtered for 'Sale' adjustments to find the last sale date.
- - **GROUP BY** to aggregate data per book.
- - **HAVING** clause to filter:
-    1. Books explicitly marked as 'Obsolete'.
-    2. Books with stock but no sales in the last 6 months.
- */
-
- /*
- Objective: Identify books that are obsolete or have stagnant sales, indicating potential obsolescence.
- Logic:
- - **Obsolete Status**: Directly flags books marked as 'Obsolete'.
- - **No Recent Sales**: Flags books with existing stock but no sales in the past 6 months.
- */
-
- /*
- Recommendations:
- - **Indexing**: Ensure indexes on `INVENTORY.BookID`, `INVENTORY_ADJUSTMENTS.BookID`, and `INVENTORY_ADJUSTMENTS.AdjustmentType` to enhance join performance.
- - **Data Integrity**: Regularly update the `Status` field to reflect the current state of each inventory item accurately.
- - **Automated Reports**: Schedule this query to run periodically, assisting in proactive inventory management decisions.
- */
+/*
+Explanation:
+- **LEFT JOIN** with `INVENTORY_ADJUSTMENTS` filtered for 'Sale' adjustments to find the last sale date.
+- **GROUP BY** to aggregate data per book.
+- **HAVING** clause to filter:
+   1. Books explicitly marked as 'Obsolete'.
+   2. Books with stock but no sales in the last 6 months.
+*/
