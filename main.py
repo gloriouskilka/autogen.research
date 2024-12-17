@@ -22,7 +22,7 @@ from sqlalchemy import select
 
 from autogen_core.tools import FunctionTool
 
-from util import model_client, settings, configure_tracing
+from util import model_client, settings, configure_tracing, OpenAIChatCompletionClientWrapper
 
 # ---------------------------
 # Database Setup
@@ -372,7 +372,25 @@ termination_condition = TextMentionTermination("TERMINATE")
 # ---------------------------
 
 
-# Run the team
+# Define a custom function to handle verification exceptions
+async def handle_verification(verification):
+    if isinstance(verification, OpenAIChatCompletionClientWrapper.FunctionCallVerification):
+        # Handle function call verification
+        for function_call_record in verification.function_calls:
+            function_name = function_call_record.function_name
+            arguments = function_call_record.arguments
+            print(f"Function called: {function_name} with arguments: {arguments}")
+            # Implement your business logic based on the function calls
+    elif isinstance(verification, OpenAIChatCompletionClientWrapper.TextResultVerification):
+        # Handle text result verification
+        content = verification.content
+        print(f"Text content: {content}")
+        # Implement your business logic based on the text content
+    else:
+        # Handle unexpected verification types
+        raise Exception("Unknown verification type.")
+
+
 async def main():
     langfuse = Langfuse(
         secret_key=settings.langfuse_secret_key,
@@ -417,19 +435,29 @@ async def main():
     team._runtime = runtime
 
     tasks = [
-        # "Show the info about Black Hat",
         "Investigate why Black Hat is becoming more popular in our shop.",
         "Investigate why Yellow Hat is not popular in our shop.",
     ]
 
-    # tasks = [
-    #     "Investigate why Black Hat is becoming more popular in our shop.",6
-    #     "Investigate why Yellow Hat is not popular in our shop.",
-    # ]
     # Run the tasks sequentially
     for task in tasks:
         logger.debug(f"--- Starting task: {task} ---\n")
-        await Console(team.run_stream(task=task))
+
+        try:
+            # Run the team and capture the output
+            await Console(team.run_stream(task=task))
+
+            # After running, check the verification results
+            for verification in model_client.create_results:
+                await handle_verification(verification)
+
+            # Clear the create_results after handling
+            model_client.create_results.clear()
+
+        except OpenAIChatCompletionClientWrapper.Verification as verification:
+            # If throw_on_create is True and an exception is raised
+            await handle_verification(verification)
+
         logger.debug(f"\n--- Completed task: {task} ---\n")
         await team.reset()  # Reset the team state before each task
 

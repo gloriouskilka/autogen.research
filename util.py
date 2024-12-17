@@ -72,10 +72,9 @@ class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
             super().__init__(result)
             self.content = result.content
 
-    def __init__(self, throw_on_create=False, expect_function_call=True, *args, **kwargs):
+    def __init__(self, throw_on_create=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.throw_on_create = throw_on_create
-        self.expect_function_call = expect_function_call
         self.create_results: list[OpenAIChatCompletionClientWrapper.Verification] = []
 
     def set_throw_on_create(self, throw_on_create):
@@ -91,10 +90,10 @@ class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
             logger.debug(f"Intercepted create call: {result}")
             assert isinstance(result, CreateResult)
 
-            if self.expect_function_call:
-                assert (
-                    result.finish_reason == "function_calls"
-                ), f"Expected 'function_calls' but got '{result.finish_reason}'"
+            verification = None  # Initialize verification object
+
+            if result.finish_reason == "function_calls":
+                # Handle function calls
                 assert isinstance(result.content, list), "Expected result.content to be a list"
                 if len(result.content) == 0:
                     raise Exception("No function calls returned.")
@@ -110,20 +109,20 @@ class OpenAIChatCompletionClientWrapper(OpenAIChatCompletionClient):
                 # After collecting all function calls, create the verification object
                 verification = self.FunctionCallVerification(result, function_calls)
 
-                if self.throw_on_create:
-                    raise verification
-                else:
-                    self.create_results.append(verification)
-            else:
-                assert result.finish_reason == "stop", f"Expected 'stop' but got '{result.finish_reason}'"
+            elif result.finish_reason == "stop":
+                # Handle text results
                 assert isinstance(result.content, str), "Expected result.content to be a string"
 
                 verification = self.TextResultVerification(result)
 
-                if self.throw_on_create:
-                    raise verification
-                else:
-                    self.create_results.append(verification)
+            else:
+                raise Exception(f"Unexpected finish_reason: {result.finish_reason}")
+
+            if self.throw_on_create:
+                raise verification
+            else:
+                self.create_results.append(verification)
+
             return result
 
         # Return the wrapper coroutine
