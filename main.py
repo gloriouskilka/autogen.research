@@ -40,6 +40,7 @@
 
 
 import asyncio
+import json
 import sys
 from datetime import datetime
 from typing import Dict, Any, List
@@ -343,14 +344,25 @@ termination_condition = TextMentionTermination("TERMINATE")
 
 
 # Define a custom function to handle verification exceptions
-async def handle_verification(verification):
+async def handle_verification(verification, expected_function_calls):
     if isinstance(verification, OpenAIChatCompletionClientWrapper.FunctionCallVerification):
         # Handle function call verification
+        actual_function_calls = []
         for function_call_record in verification.function_calls:
             function_name = function_call_record.function_name
             arguments = function_call_record.arguments
             print(f"Function called: {function_name} with arguments: {arguments}")
-            # Implement your business logic based on the function calls
+            actual_function_calls.append({"name": function_name, "arguments": arguments})
+
+        # Compare actual function calls with expected function calls
+        if actual_function_calls == expected_function_calls:
+            print("Function calls match the expected function calls.")
+        else:
+            print("Function calls do not match the expected function calls.")
+            print("Expected:")
+            print(json.dumps(expected_function_calls, indent=2))
+            print("Actual:")
+            print(json.dumps(actual_function_calls, indent=2))
     elif isinstance(verification, OpenAIChatCompletionClientWrapper.TextResultVerification):
         # Handle text result verification
         content = verification.content
@@ -406,8 +418,20 @@ async def main():
     team._runtime = runtime
 
     tasks = [
-        "Investigate why Black Hat is becoming more popular in our shop.",
-        "Investigate why Yellow Hat is not popular in our shop.",
+        {
+            "task": "Investigate why Black Hat is becoming more popular in our shop.",
+            "expected_function_calls": [
+                {"name": "get_sales_data", "arguments": {"product_name": "Black Hat"}},
+                {"name": "get_customer_feedback", "arguments": {"product_name": "Black Hat"}},
+            ],
+        },
+        {
+            "task": "Investigate why Yellow Hat is not popular in our shop.",
+            "expected_function_calls": [
+                {"name": "get_sales_data", "arguments": {"product_name": "Yellow Hat"}},
+                {"name": "get_customer_feedback", "arguments": {"product_name": "Yellow Hat"}},
+            ],
+        },
     ]
 
     model_client.set_throw_on_create(True)
@@ -415,12 +439,15 @@ async def main():
     saved_state = await team.save_state()
 
     # Run the tasks sequentially
-    for task in tasks:
-        logger.debug(f"--- Starting task: {task} ---\n")
+    for task_entry in tasks:
+        task_text = task_entry["task"]
+        expected_function_calls = task_entry["expected_function_calls"]
+
+        logger.debug(f"--- Starting task: {task_text} ---\n")
 
         try:
             # Run the team and capture the output
-            await Console(team.run_stream(task=task))
+            await Console(team.run_stream(task=task_text))
 
             # After running, check the verification results
             for verification in model_client.create_results:
@@ -430,9 +457,9 @@ async def main():
             model_client.create_results.clear()
 
         except OpenAIChatCompletionClientWrapper.Verification as verification:
-            await handle_verification(verification)
+            await handle_verification(verification, expected_function_calls)
 
-        logger.debug(f"\n--- Completed task: {task} ---\n")
+        logger.debug(f"\n--- Completed task: {task_text} ---\n")
         # await team.reset()  # Reset the team state before each task
         await team.load_state(saved_state)
 
