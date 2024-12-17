@@ -1,16 +1,18 @@
 -- Identify Obsolete Inventory
--- We can identify obsolete books by checking their Status and analyzing recent sales activity.
--- Identify obsolete books
+-- Criteria:
+-- 1. Status is 'Obsolete'.
+-- 2. OR QuantityOnHand > 0 AND no sales in the last 6 months.
+
 SELECT
     i.BookID,
     b.Title,
     i.QuantityOnHand,
     i.Status,
-    MAX(CASE WHEN a.AdjustmentType = 'Sale' THEN a.AdjustmentDate ELSE NULL END) AS LastSaleDate
+    MAX(a.AdjustmentDate) AS LastSaleDate
 FROM
     INVENTORY i
     JOIN BOOKS b ON i.BookID = b.BookID
-    LEFT JOIN INVENTORY_ADJUSTMENTS a ON i.BookID = a.BookID
+    LEFT JOIN INVENTORY_ADJUSTMENTS a ON i.BookID = a.BookID AND a.AdjustmentType = 'Sale'
 GROUP BY
     i.BookID,
     b.Title,
@@ -21,12 +23,18 @@ HAVING
     OR (
         i.QuantityOnHand > 0
         AND (
-            MAX(CASE WHEN a.AdjustmentType = 'Sale' THEN a.AdjustmentDate ELSE NULL END) IS NULL
-            OR MAX(CASE WHEN a.AdjustmentType = 'Sale' THEN a.AdjustmentDate ELSE NULL END) < DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+            MAX(a.AdjustmentDate) IS NULL
+            OR MAX(a.AdjustmentDate) < DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
         )
     )
 ORDER BY
     i.BookID;
+
+ /*
+ Explanation:
+ - Filters books marked as 'Obsolete'.
+ - Additionally identifies books with stock but no sales in the last 6 months.
+ */
 
 /*
 Explanation:

@@ -1,15 +1,18 @@
 -- Identify Excess Inventory
--- We can identify books with excess inventory by comparing QuantityOnHand with ReorderLevel and analyzing sales data.
+-- Criteria:
+-- 1. QuantityOnHand is more than 1.5 times the ReorderLevel.
+-- 2. Total sales are less than half of the current QuantityOnHand.
+
 SELECT
     i.BookID,
     b.Title,
     i.QuantityOnHand,
     i.ReorderLevel,
-    ABS(SUM(CASE WHEN a.AdjustmentType = 'Sale' THEN a.QuantityAdjusted ELSE 0 END)) AS TotalSales
+    COALESCE(SUM(CASE WHEN a.AdjustmentType = 'Sale' THEN -a.QuantityAdjusted ELSE 0 END), 0) AS TotalSales
 FROM
     INVENTORY i
     JOIN BOOKS b ON i.BookID = b.BookID
-    LEFT JOIN INVENTORY_ADJUSTMENTS a ON i.BookID = a.BookID
+    LEFT JOIN INVENTORY_ADJUSTMENTS a ON i.BookID = a.BookID AND a.AdjustmentType = 'Sale'
 GROUP BY
     i.BookID,
     b.Title,
@@ -17,9 +20,15 @@ GROUP BY
     i.ReorderLevel
 HAVING
     i.QuantityOnHand > (i.ReorderLevel * 1.5)
-    AND ABS(SUM(CASE WHEN a.AdjustmentType = 'Sale' THEN a.QuantityAdjusted ELSE 0 END)) < (i.QuantityOnHand / 2)
+    AND COALESCE(SUM(-a.QuantityAdjusted), 0) < (i.QuantityOnHand / 2)
 ORDER BY
     i.BookID;
+
+ /*
+ Explanation:
+ - COALESCE ensures that books with no sales are treated as having zero sales.
+ - Adjusted `QuantityAdjusted` sign to reflect actual sales quantity.
+ */
 
 /*
 Explanation:
@@ -36,5 +45,3 @@ Calculated TotalSales by summing the quantities adjusted for sales (AdjustmentTy
 Results:
 Based on the sample data, this query should identify BookID 3 ('Clean Code') as having excess inventory.
 */
-
-
