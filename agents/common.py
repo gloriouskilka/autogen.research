@@ -31,11 +31,9 @@ class FinalPipelineInput:
     info: Dict[str, Any]
 
 
-@dataclass
 class DescriptionDict(BaseModel):
     description: Dict[str, Any]
 
 
-@dataclass
-class OverviewInfo:
+class OverviewInfo(BaseModel):
     overview: Dict[str, Any]
