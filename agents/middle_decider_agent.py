@@ -25,7 +25,8 @@ Available function: final_pipeline."""
             UserMessage(content=str(description_dict), source="user"),
         ]
 
-        tool_agent_id = await self.runtime.get("tool_agent_type", key="tool_agent")
+        # tool_agent_id = await self.runtime.get("tool_agent_type", key="tool_agent")
+        tool_agent_id = await self.runtime.get("tool_agent_type")
 
         # Use the caller loop to decide the next pipeline
         generated_messages = await tool_agent_caller_loop(

@@ -44,31 +44,27 @@ async def main():
     await CoordinatorAgent.register(
         runtime=runtime,
         type="coordinator_agent_type",
-        key="coordinator_agent",
         factory=lambda: CoordinatorAgent(model_client),
     )
     await MiddleDeciderAgent.register(
         runtime=runtime,
         type="middle_decider_agent_type",
-        key="middle_decider_agent",
         factory=lambda: MiddleDeciderAgent(model_client),
     )
     await AnalysisAgent.register(
-        runtime=runtime, type="analysis_agent_type", key="analysis_agent", factory=lambda: AnalysisAgent(model_client)
+        runtime=runtime, type="analysis_agent_type", factory=lambda: AnalysisAgent(model_client)
     )
-    await FinalPipelineAgent.register(
-        runtime=runtime, type="final_pipeline_agent_type", key="final_pipeline_agent", factory=FinalPipelineAgent
-    )
+    await FinalPipelineAgent.register(runtime=runtime, type="final_pipeline_agent_type", factory=FinalPipelineAgent)
 
     # Set up ToolAgent with pipeline tools
     pipeline_tools = [pipeline_a_tool, pipeline_b_tool, final_pipeline_tool]
     tool_agent = ToolAgent(description="Pipeline Tool Agent", tools=pipeline_tools)
-    await tool_agent.register(runtime=runtime, type="tool_agent_type", key="tool_agent", factory=lambda: tool_agent)
+    await tool_agent.register(runtime=runtime, type="tool_agent_type", factory=lambda: tool_agent)
 
     runtime.start()
 
     # Simulate user input and initiate processing
-    coordinator_agent_id = await runtime.get("coordinator_agent_type", key="coordinator_agent")
+    coordinator_agent_id = await runtime.get("coordinator_agent_type")
     user_input_text = input("Enter your request: ")
     user_input = UserInput(text=user_input_text)
 

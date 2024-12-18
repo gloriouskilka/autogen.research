@@ -29,7 +29,8 @@ Available functions are pipeline_a and pipeline_b.
             UserMessage(content=user_text, source="user"),
         ]
 
-        tool_agent_id = await self.runtime.get("tool_agent_type", key="tool_agent")
+        # tool_agent_id = await self.runtime.get("tool_agent_type", key="tool_agent")
+        tool_agent_id = await self.runtime.get("tool_agent_type")
 
         # Use the caller loop to decide initial pipeline
         generated_messages = await tool_agent_caller_loop(
@@ -60,7 +61,8 @@ Available functions are pipeline_a and pipeline_b.
             )
 
             # Proceed to the middle decider agent
-            middle_decider_agent_id = await self.runtime.get("middle_decider_agent_type", key="middle_decider_agent")
+            # middle_decider_agent_id = await self.runtime.get("middle_decider_agent_type", key="middle_decider_agent")
+            middle_decider_agent_id = await self.runtime.get("middle_decider_agent_type")
             decision_info = await self.send_message(
                 message=pipeline_result.description_dict,
                 recipient=middle_decider_agent_id,
@@ -68,7 +70,8 @@ Available functions are pipeline_a and pipeline_b.
             )
 
             # Proceed to final pipeline
-            final_pipeline_agent_id = await self.runtime.get("final_pipeline_agent_type", key="final_pipeline_agent")
+            # final_pipeline_agent_id = await self.runtime.get("final_pipeline_agent_type", key="final_pipeline_agent")
+            final_pipeline_agent_id = await self.runtime.get("final_pipeline_agent_type")
             final_input = FinalPipelineInput(dataframe=pipeline_result.dataframe, info=decision_info.info)
 
             final_result = await self.send_message(
