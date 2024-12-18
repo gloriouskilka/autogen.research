@@ -1,16 +1,17 @@
 import openai
-from autogen_core.models import ChatCompletionClient, CreateResult, LLMMessage, RequestUsage
-from autogen_core import CancellationToken
-from typing import List, Mapping, Any
 from autogen_core.models import (
+    ChatCompletionClient,
+    CreateResult,
+    LLMMessage,
+    RequestUsage,
     SystemMessage,
     UserMessage,
     AssistantMessage,
     FunctionExecutionResultMessage,
-    FunctionCall,
 )
-from autogen_core.tools import ToolSchema, Tool
-import asyncio
+from autogen_core.tools import Tool, ToolSchema
+from autogen_core import FunctionCall, CancellationToken
+from typing import List, Mapping, Any
 
 
 class OpenAIChatCompletionClient(ChatCompletionClient):
@@ -36,28 +37,19 @@ class OpenAIChatCompletionClient(ChatCompletionClient):
             elif isinstance(msg, AssistantMessage):
                 if isinstance(msg.content, str):
                     api_messages.append({"role": "assistant", "content": msg.content})
-                else:
+                elif isinstance(msg.content, list):
                     # Handle FunctionCall instances
                     for func_call in msg.content:
                         api_messages.append(
                             {
                                 "role": "assistant",
                                 "content": None,
-                                "function_call": {
-                                    "name": func_call.name,
-                                    "arguments": func_call.arguments,
-                                },
+                                "function_call": {"name": func_call.name, "arguments": func_call.arguments},
                             }
                         )
             elif isinstance(msg, FunctionExecutionResultMessage):
                 for result in msg.content:
-                    api_messages.append(
-                        {
-                            "role": "function",
-                            "name": result.call_id,
-                            "content": result.content,
-                        }
-                    )
+                    api_messages.append({"role": "function", "name": result.call_id, "content": result.content})
 
         # Prepare functions for the API
         api_functions = [tool.schema for tool in tools]
@@ -68,28 +60,28 @@ class OpenAIChatCompletionClient(ChatCompletionClient):
             messages=api_messages,
             functions=api_functions,
             function_call="auto",
-            **extra_create_args,
+            **extra_create_args
         )
 
         # Extract the response
         choice = response.choices[0]
         message = choice.message
-        content = message.get("content", None)
 
         if "function_call" in message:
             function_call = FunctionCall(
-                id="unique_call_id",  # Generate or assign a unique ID
+                id="unique_call_id",  # Assign a unique ID or utilize an existing one
                 name=message["function_call"]["name"],
                 arguments=message["function_call"]["arguments"],
             )
             content = [function_call]
+        else:
+            content = message.get("content", "")
 
         return CreateResult(
             finish_reason=choice.finish_reason,
             content=content,
             usage=RequestUsage(
-                prompt_tokens=response.usage.prompt_tokens,
-                completion_tokens=response.usage.completion_tokens,
+                prompt_tokens=response.usage.prompt_tokens, completion_tokens=response.usage.completion_tokens
             ),
             cached=False,
         )

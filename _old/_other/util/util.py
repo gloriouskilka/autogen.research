@@ -37,9 +37,9 @@ settings = Settings()
 load_dotenv()
 
 # Print those env vars:
-print("LANGFUSE_PUBLIC_KEY:", os.getenv("LANGFUSE_PUBLIC_KEY"))
-# print("LANGFUSE_SECRET_KEY:", os.getenv("LANGFUSE_SECRET_KEY"))
-print("LANGFUSE_HOST:", os.getenv("LANGFUSE_HOST"))
+logger.debug("LANGFUSE_PUBLIC_KEY:", os.getenv("LANGFUSE_PUBLIC_KEY"))
+# logger.debug("LANGFUSE_SECRET_KEY:", os.getenv("LANGFUSE_SECRET_KEY"))
+logger.debug("LANGFUSE_HOST:", os.getenv("LANGFUSE_HOST"))
 
 # I want to intercept "create" function calls to model_clint to test the result later
 

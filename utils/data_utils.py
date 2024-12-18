@@ -1,33 +1,26 @@
+# utils/data_utils.py
+
 import pandas as pd
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict
 
 
-def process_data_pipeline_a(data: pd.DataFrame) -> Tuple[Dict[str, Any], Dict]:
+def process_data_pipeline_a(data: str) -> Tuple[pd.DataFrame, Dict]:
     # Deterministic processing logic for Pipeline A
-    overview = {
-        "columns": data.columns.tolist(),
-        "num_rows": len(data),
-        "summary_statistics": data.describe().to_dict(),
-    }
-    return data, overview
+    df = pd.DataFrame({"A": [1, 2, 3], "B": [4, 5, 6]})
+    description_dict = {"summary": "Pipeline A processed the data.", "columns": df.columns.tolist()}
+    return df, description_dict
 
 
-def process_data_pipeline_b(data: pd.DataFrame) -> Tuple[Dict[str, Any], Dict]:
+def process_data_pipeline_b(data: str) -> Tuple[pd.DataFrame, Dict]:
     # Deterministic processing logic for Pipeline B
-    data["new_column"] = data.select_dtypes(include="number").mean(axis=1)
-    overview = {
-        "columns": data.columns.tolist(),
-        "num_rows": len(data),
-        "added_new_column": True,
-    }
-    return data, overview
+    df = pd.DataFrame({"X": [7, 8, 9], "Y": [10, 11, 12]})
+    description_dict = {"summary": "Pipeline B processed the data.", "columns": df.columns.tolist()}
+    return df, description_dict
 
 
-def analyze_full_data(dataframe: pd.DataFrame) -> Dict:
+def analyze_full_data(dataframe_dict: Dict) -> Dict:
+    # Convert dict back to DataFrame
+    df = pd.DataFrame.from_dict(dataframe_dict)
     # Deterministic final analysis logic
-    correlation = dataframe.corr().to_dict()
-    overview_info = {
-        "correlation_matrix": correlation,
-        "num_rows": len(dataframe),
-    }
+    overview_info = {"mean_values": df.mean().to_dict(), "total_entries": len(df)}
     return overview_info

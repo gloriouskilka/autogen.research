@@ -126,7 +126,7 @@ class MyAgent(RoutedAgent):
     @message_handler
     async def handle_text(self, message: str, ctx: MessageContext) -> None:
         # Handle plain text messages
-        print(f"Received message: {message}")
+        logger.debug(f"Received message: {message}")
 
     @rpc
     async def compute(self, message: dict, ctx: MessageContext) -> int:
@@ -157,7 +157,7 @@ await runtime.send_message(message="Hello, Agent!", recipient=agent_id)
 
 # Make an RPC call
 result = await runtime.send_message(message={'a': 5, 'b': 3}, recipient=agent_id)
-print(f"Result of compute: {result}")
+logger.debug(f"Result of compute: {result}")
 ```
 
 #### Publishing Messages
@@ -402,7 +402,7 @@ result = await runtime.send_message(
     message={'data_id': 1},
     recipient=agent_a_id
 )
-print(result)  # Output: Final result for ID 1: PROCESSED DATA FOR ID 1
+logger.debug(result)  # Output: Final result for ID 1: PROCESSED DATA FOR ID 1
 
 # Stop the runtime when done
 await runtime.stop()
@@ -560,7 +560,7 @@ final_result = await runtime.send_message(
     recipient=coordinator_agent_id
 )
 
-print(final_result.result)
+logger.debug(final_result.result)
 # Output: Start -> Pipeline A Step 1 -> Pipeline A Step 2
 
 # Example user input that triggers Pipeline B
@@ -571,7 +571,7 @@ final_result_b = await runtime.send_message(
     recipient=coordinator_agent_id
 )
 
-print(final_result_b.result)
+logger.debug(final_result_b.result)
 # Output: Start -> Pipeline B Step 1 -> Pipeline B Step 2
 
 # Stop the runtime when done
@@ -885,7 +885,7 @@ final_result = await runtime.send_message(
     recipient=coordinator_agent_id
 )
 
-print(final_result.result)
+logger.debug(final_result.result)
 # Output will depend on the LLM's decision and processing result
 ```
 

@@ -3,7 +3,7 @@ from autogen_core.models import LLMMessage, SystemMessage, UserMessage, Assistan
 from autogen_core.tool_agent import tool_agent_caller_loop
 from agents.common import UserInput, FinalResult
 from typing import List
-import json
+from tools.function_tools import pipeline_a_tool, pipeline_b_tool
 
 
 class CoordinatorAgent(RoutedAgent):
@@ -17,43 +17,58 @@ class CoordinatorAgent(RoutedAgent):
 
         input_messages: List[LLMMessage] = [
             SystemMessage(
-                content="""You are an assistant that decides which SQL query to execute based on user input.
-                Available queries are query_01_excess, query_02_obsolete, query_03_top_selling, etc."""
+                content="""
+You are an assistant that decides which initial processing function to call based on user input.
+Available functions are pipeline_a and pipeline_b.
+"""
             ),
             UserMessage(content=user_text, source="user"),
         ]
 
         tool_agent_id = await self.runtime.get("tool_agent_type", key="tool_agent")
 
-        # Use the caller loop to decide which query to run
+        # Use the caller loop to decide initial pipeline
         generated_messages = await tool_agent_caller_loop(
             caller=self,
             tool_agent_id=tool_agent_id,
             model_client=self.model_client,
             input_messages=input_messages,
-            tool_schema=[query_tool.schema],
+            tool_schema=[pipeline_a_tool.schema, pipeline_b_tool.schema],
             cancellation_token=ctx.cancellation_token,
             caller_source="assistant",
         )
 
-        # Extract the query result
-        last_message = generated_messages[-1]
-        if isinstance(last_message, AssistantMessage) and isinstance(last_message.content, str):
-            try:
-                result_data = json.loads(last_message.content)
-                dataframe_dict = result_data
-                # Proceed to the LLM-decided pipeline
-                middle_decider_agent_id = await self.runtime.get(
-                    "middle_decider_agent_type", key="middle_decider_agent"
-                )
-                decision_info = await self.send_message(
-                    message={"dataframe": dataframe_dict},
-                    recipient=middle_decider_agent_id,
-                    cancellation_token=ctx.cancellation_token,
-                )
+        # Extract result data
+        last_message_content = None
+        for msg in reversed(generated_messages):
+            if isinstance(msg, AssistantMessage):
+                if isinstance(msg.content, str):
+                    last_message_content = msg.content
+                    break
+                elif isinstance(msg.content, list):
+                    continue  # Skip function calls
+        if last_message_content:
+            # Deserialize the result (assuming JSON format)
+            import json
 
-                return decision_info  # FinalResult will be returned from the final pipeline
-            except json.JSONDecodeError:
-                return FinalResult(result="Error: Failed to parse the query result.")
-        else:
-            return FinalResult(result="Error: Unable to process input.")
+            result_data = json.loads(last_message_content)
+            dataframe_dict = result_data["dataframe"]
+            description_dict = result_data["description_dict"]
+
+            # Proceed to the middle decider agent
+            middle_decider_agent_id = await self.runtime.get("middle_decider_agent_type", key="middle_decider_agent")
+            decision_info = await self.send_message(
+                message=description_dict, recipient=middle_decider_agent_id, cancellation_token=ctx.cancellation_token
+            )
+
+            # Proceed to final pipeline
+            final_pipeline_agent_id = await self.runtime.get("final_pipeline_agent_type", key="final_pipeline_agent")
+            final_result = await self.send_message(
+                message={"dataframe": dataframe_dict, "info": decision_info},
+                recipient=final_pipeline_agent_id,
+                cancellation_token=ctx.cancellation_token,
+            )
+
+            return FinalResult(result=final_result.result)
+
+        return FinalResult(result="Error: Unable to process input.")
