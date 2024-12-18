@@ -5,7 +5,13 @@
 # A mock implementation of ChatCompletionClient that allows interception and validation
 # of function calls.
 
-from autogen_core.models import ChatCompletionClient, CreateResult, LLMMessage, FunctionExecutionResultMessage
+from autogen_core.models import (
+    ChatCompletionClient,
+    CreateResult,
+    LLMMessage,
+    FunctionExecutionResultMessage,
+    RequestUsage,
+)
 from autogen_core._types import FunctionCall
 from autogen_core.models import AssistantMessage, FunctionExecutionResult
 from autogen_core.tools import Tool, ToolSchema
@@ -42,8 +48,8 @@ class MockChatCompletionClient(ChatCompletionClient):
             content = messages[-1].content if messages else ""
             return CreateResult(
                 finish_reason="stop",
-                content=content,
-                usage={"prompt_tokens": 0, "completion_tokens": 0},
+                content="Your string content here",  # Replace with appropriate content
+                usage=RequestUsage(prompt_tokens=0, completion_tokens=0),
                 cached=False,
             )
 
@@ -54,10 +60,7 @@ class MockChatCompletionClient(ChatCompletionClient):
         return CreateResult(
             finish_reason="function_calls",
             content=[function_call],
-            usage={
-                "prompt_tokens": 0,
-                "completion_tokens": 0,
-            },
+            usage=RequestUsage(prompt_tokens=0, completion_tokens=0),
             cached=False,
         )
 
@@ -82,10 +85,14 @@ class MockChatCompletionClient(ChatCompletionClient):
     def total_usage(self):
         return self.actual_usage()
 
-    def count_tokens(self, messages, tools=[]):
+    def count_tokens(self, messages, tools=None):
+        if tools is None:
+            tools = []
         return 0
 
-    def remaining_tokens(self, messages, tools=[]):
+    def remaining_tokens(self, messages, tools=None):
+        if tools is None:
+            tools = []
         return 1000
 
     @property
