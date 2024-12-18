@@ -3,8 +3,7 @@
 # =============================================================================
 from autogen_core import CancellationToken
 from pydantic import BaseModel
-
-# Define some tools for testing.
+from autogen_core.tools import BaseTool
 
 
 class AddNumbersInput(BaseModel):
@@ -14,9 +13,6 @@ class AddNumbersInput(BaseModel):
 
 class AddNumbersResult(BaseModel):
     result: float
-
-
-from autogen_core.tools import BaseTool
 
 
 class AddNumbersTool(BaseTool[AddNumbersInput, AddNumbersResult]):
