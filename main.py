@@ -1,19 +1,27 @@
-# main.py
-
 import asyncio
+
+# from config import OPENAI_API_KEY, MODEL_NAME, DATABASE_PATH
 from autogen_core import SingleThreadedAgentRuntime
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from langfuse import Langfuse
 from loguru import logger
 
-# from models.llm_client import OpenAIChatCompletionClient
+# from models.openai_client import OpenAIChatCompletionClient
 from agents.coordinator_agent import CoordinatorAgent
-from agents.pipeline_a_agent import PipelineAAgent
 from agents.middle_decider_agent import MiddleDeciderAgent
-from agents.final_pipeline_agent import FinalPipelineAgent
 from agents.analysis_agent import AnalysisAgent
+from agents.pipeline_a_agent import PipelineAAgent
+from agents.pipeline_b_agent import PipelineBAgent
+from agents.final_pipeline_agent import FinalPipelineAgent
 from autogen_core.tool_agent import ToolAgent
-from tools.data_tools import pipeline_a_tool, pipeline_b_tool
+from tools.function_tools import (
+    pipeline_a_tool,
+    pipeline_b_tool,
+    final_pipeline_tool,
+    query_tool,
+)
+from agents.common import UserInput
+
 from utils.settings import settings
 from utils.tracing import configure_tracing
 
@@ -30,27 +38,47 @@ async def main():
     tracer_provider = configure_tracing(langfuse_client=langfuse)
     runtime = SingleThreadedAgentRuntime(tracer_provider=tracer_provider)
     # runtime = SingleThreadedAgentRuntime(tracer_provider=tracer_provider)
-    model_client = OpenAIChatCompletionClient(model="gpt-4o", api_key=settings.openai_api_key)
+    model_client = OpenAIChatCompletionClient(model=settings.model, api_key=settings.openai_api_key)
+    # runtime = SingleThreadedAgentRuntime()
+    # model_client = OpenAIChatCompletionClient(model=settings.model, api_key=settings.openai_api_key)
 
     # Register agents
-    await CoordinatorAgent.register(runtime, "coordinator_agent", lambda: CoordinatorAgent(model_client))
-    await PipelineAAgent.register(runtime, "pipeline_a_agent", PipelineAAgent)
-    await MiddleDeciderAgent.register(runtime, "middle_decider_agent", lambda: MiddleDeciderAgent(model_client))
-    await FinalPipelineAgent.register(runtime, "final_pipeline_agent", FinalPipelineAgent)
-    await AnalysisAgent.register(runtime, "analysis_agent", lambda: AnalysisAgent(model_client))
+    await CoordinatorAgent.register(
+        runtime=runtime, type="coordinator_agent_type", factory=lambda: CoordinatorAgent(model_client)
+    )
+    await MiddleDeciderAgent.register(
+        runtime=runtime,
+        type="middle_decider_agent_type",
+        factory=lambda: MiddleDeciderAgent(model_client),
+    )
+    await AnalysisAgent.register(
+        runtime=runtime, type="analysis_agent_type", factory=lambda: AnalysisAgent(model_client)
+    )
+    await PipelineAAgent.register(runtime=runtime, type="pipeline_a_agent_type", factory=PipelineAAgent)
+    await PipelineBAgent.register(runtime=runtime, type="pipeline_b_agent_type", factory=PipelineBAgent)
+    await FinalPipelineAgent.register(runtime=runtime, type="final_pipeline_agent_type", factory=FinalPipelineAgent)
 
-    # Register ToolAgent
-    tool_agent = ToolAgent(description="Tool Agent", tools=[pipeline_a_tool, pipeline_b_tool])
-    await tool_agent.register(runtime, "tool_agent", lambda: tool_agent)
+    # Register ToolAgent with query tool and pipeline tools
+    pipeline_tools = [pipeline_a_tool, pipeline_b_tool, final_pipeline_tool, query_tool]
+    tool_agent = ToolAgent(description="Pipeline and Query Tool Agent", tools=pipeline_tools)
+    await tool_agent.register(runtime=runtime, type="tool_agent_type", factory=lambda: tool_agent)
 
     runtime.start()
 
-    # Get user input
-    user_input = input("Enter your request: ")
+    # Simulate user input and initiate processing
+    coordinator_agent_id = await runtime.get("coordinator_agent_type", key="coordinator_agent")
+    user_input_text = input("Enter your request: ")
+    user_input = UserInput(text=user_input_text)
 
-    # Start processing
-    coordinator_agent_id = await runtime.get("coordinator_agent")
-    await runtime.send_message(message={"text": user_input}, recipient=coordinator_agent_id)
+    final_result = await runtime.send_message(
+        message=user_input,
+        recipient=coordinator_agent_id,
+    )
+
+    print("Final Analysis Report:")
+    print(final_result.result)
+
+    await runtime.stop()
 
 
 if __name__ == "__main__":
