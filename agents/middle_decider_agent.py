@@ -3,6 +3,9 @@ from autogen_core.models import LLMMessage, SystemMessage, UserMessage, Assistan
 from autogen_core.tool_agent import tool_agent_caller_loop
 from typing import List
 from tools.function_tools import final_pipeline_tool
+import json
+
+from agents.common import DescriptionDict, DecisionInfo
 
 
 class MiddleDeciderAgent(RoutedAgent):
@@ -11,8 +14,8 @@ class MiddleDeciderAgent(RoutedAgent):
         self.model_client = model_client
 
     @rpc
-    async def decide_next_step(self, message: dict, ctx: MessageContext) -> dict:
-        description_dict = message  # The small description dictionary
+    async def decide_next_step(self, message: DescriptionDict, ctx: MessageContext) -> DecisionInfo:
+        description_dict = message.description  # The small description dictionary
 
         input_messages: List[LLMMessage] = [
             SystemMessage(
@@ -44,9 +47,7 @@ Available function: final_pipeline."""
                     break
 
         if last_message_content:
-            import json
-
             decision_info = json.loads(last_message_content)
-            return decision_info  # Returning decision info to the CoordinatorAgent
+            return DecisionInfo(info=decision_info)  # Returning decision info to the CoordinatorAgent
 
-        return {}  # Default empty dict if unable to process
+        return DecisionInfo(info={})  # Default empty dict if unable to process

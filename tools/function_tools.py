@@ -1,5 +1,3 @@
-# tools/function_tools.py
-
 from autogen_core.tools import FunctionTool
 from typing import Dict, Any
 from utils.data_utils import (
@@ -8,21 +6,22 @@ from utils.data_utils import (
     analyze_full_data,
 )
 from autogen_core import CancellationToken
+from agents.common import PipelineResult, OverviewInfo
 
 
-async def pipeline_a(data: str, cancellation_token: CancellationToken = None) -> Dict[str, Any]:
+async def pipeline_a(data: str, cancellation_token: CancellationToken = None) -> PipelineResult:
     dataframe, description_dict = process_data_pipeline_a(data)
-    return {"dataframe": dataframe.to_dict(), "description_dict": description_dict}
+    return PipelineResult(dataframe=dataframe.to_dict(), description_dict=description_dict)
 
 
-async def pipeline_b(data: str, cancellation_token: CancellationToken = None) -> Dict[str, Any]:
+async def pipeline_b(data: str, cancellation_token: CancellationToken = None) -> PipelineResult:
     dataframe, description_dict = process_data_pipeline_b(data)
-    return {"dataframe": dataframe.to_dict(), "description_dict": description_dict}
+    return PipelineResult(dataframe=dataframe.to_dict(), description_dict=description_dict)
 
 
-async def final_pipeline(dataframe: Dict, info: Dict, cancellation_token: CancellationToken = None) -> Dict[str, Any]:
+async def final_pipeline(dataframe: Dict, info: Dict, cancellation_token: CancellationToken = None) -> OverviewInfo:
     overview_info = analyze_full_data(dataframe)
-    return {"overview_info": overview_info}
+    return overview_info
 
 
 # Wrap functions as tools

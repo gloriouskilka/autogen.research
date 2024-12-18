@@ -1,9 +1,13 @@
+# agents/coordinator_agent.py
+
 from autogen_core import RoutedAgent, rpc, MessageContext
 from autogen_core.models import LLMMessage, SystemMessage, UserMessage, AssistantMessage
 from autogen_core.tool_agent import tool_agent_caller_loop
-from agents.common import UserInput, FinalResult
+
+from agents.common import UserInput, FinalResult, PipelineResult, DecisionInfo, FinalPipelineInput
 from typing import List
 from tools.function_tools import pipeline_a_tool, pipeline_b_tool
+import json
 
 
 class CoordinatorAgent(RoutedAgent):
@@ -47,26 +51,28 @@ Available functions are pipeline_a and pipeline_b.
                     break
                 elif isinstance(msg.content, list):
                     continue  # Skip function calls
+
         if last_message_content:
             # Deserialize the result (assuming JSON format)
-            import json
-
             result_data = json.loads(last_message_content)
-            dataframe_dict = result_data["dataframe"]
-            description_dict = result_data["description_dict"]
+            pipeline_result = PipelineResult(
+                dataframe=result_data["dataframe"], description_dict=result_data["description_dict"]
+            )
 
             # Proceed to the middle decider agent
             middle_decider_agent_id = await self.runtime.get("middle_decider_agent_type", key="middle_decider_agent")
             decision_info = await self.send_message(
-                message=description_dict, recipient=middle_decider_agent_id, cancellation_token=ctx.cancellation_token
+                message=pipeline_result.description_dict,
+                recipient=middle_decider_agent_id,
+                cancellation_token=ctx.cancellation_token,
             )
 
             # Proceed to final pipeline
             final_pipeline_agent_id = await self.runtime.get("final_pipeline_agent_type", key="final_pipeline_agent")
+            final_input = FinalPipelineInput(dataframe=pipeline_result.dataframe, info=decision_info.info)
+
             final_result = await self.send_message(
-                message={"dataframe": dataframe_dict, "info": decision_info},
-                recipient=final_pipeline_agent_id,
-                cancellation_token=ctx.cancellation_token,
+                message=final_input, recipient=final_pipeline_agent_id, cancellation_token=ctx.cancellation_token
             )
 
             return FinalResult(result=final_result.result)

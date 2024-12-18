@@ -3,6 +3,8 @@
 import pandas as pd
 from typing import Tuple, Dict
 
+from agents.common import OverviewInfo
+
 
 def process_data_pipeline_a(data: str) -> Tuple[pd.DataFrame, Dict]:
     # Deterministic processing logic for Pipeline A
@@ -18,9 +20,9 @@ def process_data_pipeline_b(data: str) -> Tuple[pd.DataFrame, Dict]:
     return df, description_dict
 
 
-def analyze_full_data(dataframe_dict: Dict) -> Dict:
+def analyze_full_data(dataframe_dict: Dict) -> OverviewInfo:
     # Convert dict back to DataFrame
     df = pd.DataFrame.from_dict(dataframe_dict)
     # Deterministic final analysis logic
     overview_info = {"mean_values": df.mean().to_dict(), "total_entries": len(df)}
-    return overview_info
+    return OverviewInfo(overview=overview_info)

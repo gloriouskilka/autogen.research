@@ -1,8 +1,6 @@
-# agents/analysis_agent.py
-
 from autogen_core import RoutedAgent, rpc, MessageContext
 from autogen_core.models import LLMMessage, SystemMessage, UserMessage
-from agents.common import FinalResult
+from agents.common import OverviewInfo
 from typing import List
 
 
@@ -12,8 +10,8 @@ class AnalysisAgent(RoutedAgent):
         self.model_client = model_client
 
     @rpc
-    async def generate_report(self, message: dict, ctx: MessageContext) -> str:
-        overview_info = message  # The small overview dictionary
+    async def generate_report(self, message: OverviewInfo, ctx: MessageContext) -> str:
+        overview_info = message.overview  # The small overview dictionary
 
         input_messages: List[LLMMessage] = [
             SystemMessage(
