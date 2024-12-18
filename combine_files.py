@@ -27,10 +27,7 @@ def collect_files(directory, extensions, include_top_level_dirs, exclude_dirs):
         # If we are at the top level, filter dirs based on include_top_level_dirs
         if root == directory:
             dirs[:] = [
-                d
-                for d in dirs
-                if d in include_top_level_dirs
-                or os.path.join(root, d) in include_top_level_dirs
+                d for d in dirs if d in include_top_level_dirs or os.path.join(root, d) in include_top_level_dirs
             ]
 
         for file in files:
@@ -63,9 +60,7 @@ def write_combined_file(output_file, folders, files):
 
 def main():
     parser = argparse.ArgumentParser(description="Combine project files for analysis.")
-    parser.add_argument(
-        "--directory", help="Root directory to start the search", default="."
-    )
+    parser.add_argument("--directory", help="Root directory to start the search", default=".")
     parser.add_argument(
         "--out",
         help="Output file to save combined content",
@@ -76,15 +71,14 @@ def main():
     # extensions = [".py", "*.md"]
     extensions = [".py"]
 
-    exclude_dirs = [".git", "build_dir", ".github", "tests"]
+    # exclude_dirs = [".git", "build_dir", ".github", "tests"]
+    exclude_dirs = [".git", ".github"]
 
     # part = ["agents", "base", "conditions", "state", "task", "teams", "ui"]
-    part = ["src"]
+    part = ["_autogen.projectfiles", "agents", "test_utils", "tests", "tools"]
     include_top_level_dirs = part
 
-    folders = list_top_level_folders(
-        args.directory, include_top_level_dirs, exclude_dirs
-    )
+    folders = list_top_level_folders(args.directory, include_top_level_dirs, exclude_dirs)
 
     files = collect_files(
         directory=args.directory,
