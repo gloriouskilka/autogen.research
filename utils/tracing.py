@@ -2,7 +2,7 @@ from langfuse import Langfuse
 from opentelemetry import trace
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SpanExporter, BatchSpanProcessor
+from opentelemetry.sdk.trace.export import SpanExporter, BatchSpanProcessor, SpanExportResult
 
 
 class LangFuseExporter(SpanExporter):
