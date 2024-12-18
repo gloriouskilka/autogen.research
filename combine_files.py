@@ -71,7 +71,7 @@ def main():
     args = parser.parse_args()
 
     # extensions = [".py", "*.md"]
-    patterns = ["*.py", "*.files*"]
+    patterns = ["*.py", "*.files*", "*.sql", "*.md"]
 
     # exclude_dirs = [".git", "build_dir", ".github", "tests"]
     exclude_dirs = [".git", ".github"]
