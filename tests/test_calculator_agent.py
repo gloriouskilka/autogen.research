@@ -10,6 +10,8 @@ import json
 from autogen_core import SingleThreadedAgentRuntime, AgentId, FunctionCall, CancellationToken
 from autogen_core.tool_agent import tool_agent_caller_loop
 from autogen_core.models import SystemMessage, UserMessage
+from loguru import logger
+
 from test_utils.mock_chat_client import MockChatCompletionClient
 from test_utils.assertions import assert_function_call
 from tools.math_tools import AddNumbersTool
@@ -67,10 +69,8 @@ async def test_calculator_agent():
 
     # Assert that the response is correct
     # Since we did not set a specific response, we can check the function execution result
-    assert generated_messages[-1].content == [
-        {"content": "7.0", "call_id": "1"}
-    ], "Unexpected function execution result."
-    print("Test passed: CalculatorAgent correctly executed add_numbers function.")
+    assert generated_messages[-1].content == "7.0", "Unexpected function execution result."
+    logger.info("Test passed: CalculatorAgent correctly executed add_numbers function.")
 
 
 if __name__ == "__main__":

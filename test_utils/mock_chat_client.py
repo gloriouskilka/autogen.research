@@ -48,25 +48,45 @@ class MockChatCompletionClient(ChatCompletionClient):
         if self.expected_calls:
             function_call = self.expected_calls.pop(0)
             logger.debug(f"Popped function_call from expected_calls: {function_call}")
+            self.function_calls.append(function_call)
+            logger.debug(f"Appended function_call to function_calls. Current size: {len(self.function_calls)}")
+            # Return the function call request
+            return CreateResult(
+                finish_reason="function_calls",
+                content=[function_call],
+                usage=RequestUsage(prompt_tokens=0, completion_tokens=0),
+                cached=False,
+            )
         else:
-            content = messages[-1].content if messages else ""
-            logger.debug(f"No expected_calls left. Returning echo of user's message: {content}")
+            # Generate a mock assistant response
+            last_message = messages[-1] if messages else None
+            if isinstance(last_message, FunctionExecutionResultMessage):
+                # If the last message is a function execution result, the assistant should process it
+                # For simplicity, let's simulate the assistant returning the 'result' from the function
+
+                # Check if content is a list
+                if isinstance(last_message.content, list):
+                    # Extract the content from the list
+                    # Assuming it's a list of FunctionExecutionResults
+                    function_execution_result = last_message.content[0]
+                    function_result_str = function_execution_result.content
+                else:
+                    function_result_str = last_message.content
+
+                function_result = json.loads(function_result_str)
+                content = str(function_result.get("result", ""))
+                logger.debug(f"No expected_calls left. Returning processed function result: {content}")
+            else:
+                # Echo the user's message
+                content = last_message.content if last_message else ""
+                logger.debug(f"No expected_calls left. Returning echo of user's message: {content}")
+
             return CreateResult(
                 finish_reason="stop",
                 content=content,
                 usage=RequestUsage(prompt_tokens=0, completion_tokens=0),
                 cached=False,
             )
-
-        self.function_calls.append(function_call)
-        logger.debug(f"Appended function_call to function_calls. Current size: {len(self.function_calls)}")
-
-        return CreateResult(
-            finish_reason="function_calls",
-            content=[function_call],
-            usage=RequestUsage(prompt_tokens=0, completion_tokens=0),
-            cached=False,
-        )
 
     def set_expected_function_calls(self, function_calls: List[FunctionCall]):
         self.expected_calls = function_calls.copy()
