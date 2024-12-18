@@ -56,10 +56,14 @@ async def main():
     )
     await FinalPipelineAgent.register(runtime=runtime, type="final_pipeline_agent_type", factory=FinalPipelineAgent)
 
-    # Set up ToolAgent with pipeline tools
-    pipeline_tools = [pipeline_a_tool, pipeline_b_tool, final_pipeline_tool]
-    tool_agent = ToolAgent(description="Pipeline Tool Agent", tools=pipeline_tools)
-    await tool_agent.register(runtime=runtime, type="tool_agent_type", factory=lambda: tool_agent)
+    await ToolAgent.register(
+        runtime,
+        "tool_agent_type",
+        lambda: ToolAgent(
+            description="Pipeline Tool Agent",
+            tools=[pipeline_a_tool, pipeline_b_tool, final_pipeline_tool],
+        ),
+    )
 
     runtime.start()
 
