@@ -16,5 +16,7 @@ class Settings(BaseSettings):
 
     database_url: str = Field(default="sqlite+aiosqlite:///:memory:")
 
+    worker_host_address: str = Field(default="127.0.0.1:50051")
+
 
 settings = Settings()

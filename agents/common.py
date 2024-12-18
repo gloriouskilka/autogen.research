@@ -5,6 +5,11 @@ from pydantic import BaseModel
 
 
 @dataclass
+class WorkerInput:
+    dataframe: Dict[str, Any]
+
+
+@dataclass
 class UserInput:
     text: str
 

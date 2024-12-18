@@ -3,6 +3,7 @@ import asyncio
 # from config import OPENAI_API_KEY, MODEL_NAME, DATABASE_PATH
 from autogen_core import SingleThreadedAgentRuntime
 from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_ext.runtimes.grpc import GrpcWorkerAgentRuntime, GrpcWorkerAgentRuntimeHost
 from langfuse import Langfuse
 from loguru import logger
 
@@ -26,6 +27,7 @@ from agents.common import UserInput
 
 from utils.settings import settings
 from utils.tracing import configure_tracing
+from workers.worker_agent import worker_runtime_client
 
 
 async def main():
@@ -69,6 +71,14 @@ async def main():
         lambda: DataPipelineAgent(),
     )
 
+    # GRPC host start
+    worker_host = GrpcWorkerAgentRuntimeHost(address=settings.worker_host_address)
+    worker_host.start()
+
+    # Initialize the gRPC client
+    # host_address=settings.worker_host_address, extra_grpc_config=extra_grpc_config
+    worker_runtime_client.start()
+
     runtime.start()
 
     # Simulate user input and initiate processing
@@ -84,6 +94,8 @@ async def main():
     logger.debug(final_result.result)
 
     await runtime.stop()
+    await worker_host.stop_when_signal()
+    await worker_runtime_client.stop_when_signal()
 
 
 if __name__ == "__main__":

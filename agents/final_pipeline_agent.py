@@ -1,5 +1,5 @@
 from autogen_core import RoutedAgent, rpc, MessageContext
-from agents.common import FinalResult, FinalPipelineInput
+from agents.common import FinalResult, FinalPipelineInput, WorkerInput
 from utils.data_utils import analyze_full_data
 import pandas as pd
 
@@ -13,6 +13,16 @@ class FinalPipelineAgent(RoutedAgent):
         dataframe_dict = message.dataframe
         info = message.info
         dataframe = pd.DataFrame.from_dict(dataframe_dict)
+
+        # TODO: NOW: move this calc to worker
+        # OverviewInfo
+        #
+        # worker_agent_id = await self.runtime.get("analysis_agent_type", key="default")
+        # overview_info = await self.send_message(
+        #     message=overview_info,  # We'll define a proper message class next
+        #     recipient=analysis_agent_id,
+        #     cancellation_token=ctx.cancellation_token,
+        # )
 
         # Perform final deterministic processing
         overview_info = analyze_full_data(dataframe_dict)
