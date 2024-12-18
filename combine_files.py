@@ -1,5 +1,7 @@
 import argparse
 import os
+import os
+import fnmatch
 
 
 def list_top_level_folders(directory, include_top_level_dirs, exclude_dirs):
@@ -19,7 +21,7 @@ def list_top_level_folders(directory, include_top_level_dirs, exclude_dirs):
     return folders
 
 
-def collect_files(directory, extensions, include_top_level_dirs, exclude_dirs):
+def collect_files(directory, patterns, include_top_level_dirs, exclude_dirs):
     collected_files = []
     for root, dirs, files in os.walk(directory):
         dirs[:] = [d for d in dirs if d not in exclude_dirs]
@@ -31,7 +33,7 @@ def collect_files(directory, extensions, include_top_level_dirs, exclude_dirs):
             ]
 
         for file in files:
-            if any(file.endswith(ext) for ext in extensions):
+            if any(fnmatch.fnmatch(file, pattern) for pattern in patterns):
                 collected_files.append(os.path.join(root, file))
     return collected_files
 
@@ -69,7 +71,7 @@ def main():
     args = parser.parse_args()
 
     # extensions = [".py", "*.md"]
-    extensions = [".py"]
+    patterns = ["*.py", "*.files*"]
 
     # exclude_dirs = [".git", "build_dir", ".github", "tests"]
     exclude_dirs = [".git", ".github"]
@@ -82,7 +84,7 @@ def main():
 
     files = collect_files(
         directory=args.directory,
-        extensions=extensions,
+        patterns=patterns,
         include_top_level_dirs=include_top_level_dirs,
         exclude_dirs=exclude_dirs,
     )
