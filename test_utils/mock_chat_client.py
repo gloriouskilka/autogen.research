@@ -100,35 +100,6 @@ class MockChatCompletionClient(ChatCompletionClient):
         self.responses.append(response)
         logger.debug(f"Appended response to responses. Current size: {len(self.responses)}")
 
-    # def actual_usage(self):
-    #     usage = {
-    #         "prompt_tokens": 0,
-    #         "completion_tokens": 0,
-    #     }
-    #     logger.debug(f"Returning actual usage: {usage}")
-    #     return usage
-    #
-    # def total_usage(self):
-    #     total_usage = self.actual_usage()
-    #     logger.debug(f"Returning total usage: {total_usage}")
-    #     return total_usage
-    #
-    # def count_tokens(self, messages, tools=None):
-    #     if tools is None:
-    #         tools = []
-    #         logger.debug("tools was None, initialized to empty list in count_tokens.")
-    #     token_count = 0
-    #     logger.debug(f"Returning token count: {token_count}")
-    #     return token_count
-    #
-    # def remaining_tokens(self, messages, tools=None):
-    #     if tools is None:
-    #         tools = []
-    #         logger.debug("tools was None, initialized to empty list in remaining_tokens.")
-    #     remaining = 1000
-    #     logger.debug(f"Returning remaining tokens: {remaining}")
-    #     return remaining
-
     @property
     def capabilities(self):
         capabilities = {
