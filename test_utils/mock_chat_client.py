@@ -48,7 +48,7 @@ class MockChatCompletionClient(ChatCompletionClient):
             content = messages[-1].content if messages else ""
             return CreateResult(
                 finish_reason="stop",
-                content="Your string content here",  # Replace with appropriate content
+                content=content,
                 usage=RequestUsage(prompt_tokens=0, completion_tokens=0),
                 cached=False,
             )
