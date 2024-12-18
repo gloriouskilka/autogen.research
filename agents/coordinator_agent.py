@@ -1,5 +1,7 @@
 # agents/coordinator_agent.py
-
+from autogen_agentchat.agents import AssistantAgent
+from autogen_agentchat.conditions import MaxMessageTermination
+from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_core import RoutedAgent, rpc, MessageContext, AgentId
 from autogen_core.models import LLMMessage, SystemMessage, UserMessage, AssistantMessage
 from autogen_core.tool_agent import tool_agent_caller_loop
@@ -22,71 +24,41 @@ class CoordinatorAgent(RoutedAgent):
         super().__init__(description="Coordinator Agent")
         self.model_client = model_client
 
+    def verify_pipeline_a_input_correctness(self, sock_type: str) -> bool:
+        if sock_type not in ["wool", "cotton", "polyester"]:
+            return False
+        return True
+
+    def verify_pipeline_b_input_correctness(self, list_of_apple_juices: List[str]) -> bool:
+        if any("apple" not in juice for juice in list_of_apple_juices):
+            return False
+        return True
+
     @rpc
     async def handle_user_input(self, message: UserInput, ctx: MessageContext) -> FinalResult:
-        user_text = message.text
-
-        #         input_messages: List[LLMMessage] = [
-        #             SystemMessage(
-        #                 content="""
-        # You are an assistant that decides which initial processing function to call based on user input.
-        # Available functions are pipeline_a and pipeline_b.
-        # """
-        #             ),
-        #             UserMessage(content=user_text, source="user"),
-        #         ]
+        pipeline_selector = AssistantAgent(
+            name="pipeline_selector",
+            model_client=self.model_client,
+            system_message=f"Choose a pipeline to run: pipeline_a or pipeline_b. Always verify the input data before proceeding. If both pipelines are valid, pipeline_a will be selected. If neither pipeline is valid, an error will be returned.",
+            tools=[self.verify_pipeline_a_input_correctness, self.verify_pipeline_b_input_correctness],
+            handoffs=["pipeline_a", "pipeline_b", "error_selecting"],  # TODO: error_selecting doesn't work
+        )
+        result = await pipeline_selector.run(task=message.text)
+        content = result.messages[-1].content
 
         agent_id = AgentId(type="data_pipeline_agent", key="default")
 
-        # TODO: based on user_text to decide via LLM which pipeline to run below:
-        if True:
+        if content == "pipeline_a":
             request_a = PipelineARequest(data="some input data")
             pipeline_result = await self.send_message(message=request_a, recipient=agent_id)
             logger.debug(f"Pipeline A result: {pipeline_result}")
-        else:
+        elif content == "pipeline_b":
             request_b = PipelineBRequest(data="some other input data")
             pipeline_result = await self.send_message(message=request_b, recipient=agent_id)
             logger.debug(f"Pipeline B result: {pipeline_result}")
+        else:
+            return FinalResult(result="Error: Invalid pipeline selection.")
 
-        # # For the final pipeline
-        # request_final = FinalPipelineRequest(
-        #     dataframe=result_a.dataframe, info=result_a.description_dict  # Assuming result_a is of type PipelineResult
-        # )
-        # result_final = await self.send_message(message=request_final, recipient=agent_id)
-
-        # # # tool_agent_id = await self.runtime.get("tool_agent_type", key="tool_agent")
-        # tool_agent_id = await self.runtime.get("tool_agent_type", key="default")
-        #
-        # # Use the caller loop to decide initial pipeline
-        # generated_messages = await tool_agent_caller_loop(
-        #     caller=self,
-        #     tool_agent_id=tool_agent_id,
-        #     model_client=self.model_client,
-        #     input_messages=input_messages,
-        #     tool_schema=[pipeline_a_tool.schema, pipeline_b_tool.schema],
-        #     cancellation_token=ctx.cancellation_token,
-        #     caller_source="assistant",
-        # )
-
-        # # Extract result data
-        # last_message_content = None
-        # for msg in reversed(generated_messages):
-        #     if isinstance(msg, AssistantMessage):
-        #         if isinstance(msg.content, str):
-        #             last_message_content = msg.content
-        #             break
-        #         elif isinstance(msg.content, list):
-        #             continue  # Skip function calls
-        #
-        # if last_message_content:
-        # Deserialize the result (assuming JSON format)
-        # result_data = json.loads(last_message_content)
-        # pipeline_result = PipelineResult(
-        #     dataframe=result_data["dataframe"], description_dict=result_data["description_dict"]
-        # )
-
-        # Proceed to the middle decider agent
-        # middle_decider_agent_id = await self.runtime.get("middle_decider_agent_type", key="middle_decider_agent")
         middle_decider_agent_id = await self.runtime.get("middle_decider_agent_type", key="default")
         decision_info = await self.send_message(
             message=DescriptionDict(description=pipeline_result.description_dict),
@@ -95,7 +67,6 @@ class CoordinatorAgent(RoutedAgent):
         )
 
         # Proceed to final pipeline
-        # final_pipeline_agent_id = await self.runtime.get("final_pipeline_agent_type", key="final_pipeline_agent")
         final_pipeline_agent_id = await self.runtime.get("final_pipeline_agent_type", key="default")
         final_input = FinalPipelineInput(dataframe=pipeline_result.dataframe, info=decision_info.info)
 
@@ -104,5 +75,3 @@ class CoordinatorAgent(RoutedAgent):
         )
 
         return FinalResult(result=final_result.result)
-
-        # return FinalResult(result="Error: Unable to process input.")

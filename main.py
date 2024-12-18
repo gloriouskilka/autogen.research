@@ -76,7 +76,9 @@ async def main():
     # Simulate user input and initiate processing
     coordinator_agent_id = await runtime.get("coordinator_agent_type", key="default")
     # user_input_text = input("Enter your request: ")
-    user_input_text = "Process the data using Pipeline A and then finalize the results"
+    user_input_text = (
+        "Process the data using Pipeline A win wool socks and then finalize the results drinking apple juice"
+    )
     user_input = UserInput(text=user_input_text)
 
     final_result = await runtime.send_message(message=user_input, recipient=coordinator_agent_id)
