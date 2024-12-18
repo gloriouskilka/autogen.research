@@ -13,17 +13,17 @@ from loguru import logger
 
 from agents.common import DescriptionDict, DecisionInfo
 
-import json
-
 
 class MiddleDeciderAgent(RoutedAgent):
     def __init__(
         self,
         description: str,
+        system_message_summarizer: str,
         model_client: ChatCompletionClient,
         tools: List[Tool | Callable[..., Any] | Callable[..., Awaitable[Any]]] | None = None,
     ) -> None:
         super().__init__(description)
+        self.system_message_summarizer = system_message_summarizer
         self.model_client = model_client
         self.tools = tools  # List of Tool or ToolSchema
         self.context = BufferedChatCompletionContext(buffer_size=10)
@@ -34,11 +34,11 @@ class MiddleDeciderAgent(RoutedAgent):
             name="summary_llm_agent",
             model_client=self.model_client,
             tools=self.tools,
-            system_message="Summarize the result of the previous steps. Write what the user can do next.",
+            system_message=self.system_message_summarizer,
         )
         team = RoundRobinGroupChat([summary_agent], termination_condition=MaxMessageTermination(3))
 
-        result: TaskResult = await team.run(task="Count from 1 to 10, respond one at a time.")
+        result: TaskResult = await team.run(task=str(message.description))
         logger.debug(result)
 
         content = result.messages[-1].content

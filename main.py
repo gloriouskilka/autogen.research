@@ -20,6 +20,8 @@ from tools.function_tools import (
     # pipeline_b_tool,
     # final_pipeline_tool,
     DataPipelineAgent,
+    add_numbers,
+    multiply_numbers,
     # query_tool,
 )
 from agents.common import UserInput
@@ -48,19 +50,14 @@ async def main():
         factory=lambda: CoordinatorAgent(model_client),
     )
 
-    # If custom agents are needed, they can be registered here
-    # cathy = await Assistant.register(
-    #     runtime,
-    #     "cathy",
-    #     lambda: Assistant(name="Cathy", model_client=get_model_client()),
-    # )
-
     await MiddleDeciderAgent.register(
         runtime=runtime,
         type="middle_decider_agent_type",
         factory=lambda: MiddleDeciderAgent(
-            description="Analyse the data and write a summary for the user - what to do to improve the results",
             model_client=model_client,
+            description="Analyse the data and write a summary for the user - what to do to improve the results",  # TODO: is it used somewhere?
+            system_message_summarizer="Analyse the data and write a summary for the user",
+            tools=[add_numbers, multiply_numbers],
         ),
     )
     await AnalysisAgent.register(

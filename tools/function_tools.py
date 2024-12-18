@@ -13,6 +13,8 @@ from autogen_core import (
 
 from utils.data_utils import process_data_pipeline_a, process_data_pipeline_b, analyze_full_data
 from agents.common import PipelineResult, OverviewInfo
+from autogen_core.tools import FunctionTool
+from autogen_core import CancellationToken
 
 
 # Assume these are your processing functions
@@ -31,12 +33,12 @@ async def final_pipeline(dataframe: Dict, info: Dict, cancellation_token: Cancel
     return overview_info
 
 
-# tools/function_tools.py
+async def add_numbers(a: int, b: int) -> int:
+    return a + b
 
-from autogen_core.tools import FunctionTool
-from autogen_core import CancellationToken
 
-# from utils.data_utils import calculate_statistics
+async def multiply_numbers(a: int, b: int) -> int:
+    return a * b
 
 
 async def calculate_statistics(description_dict: dict, cancellation_token: CancellationToken = None) -> dict:
