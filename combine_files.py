@@ -77,7 +77,7 @@ def main():
     exclude_dirs = [".git", ".github"]
 
     # part = ["agents", "base", "conditions", "state", "task", "teams", "ui"]
-    part = ["_autogen.projectfiles", "agents", "test_utils", "tests", "tools"]
+    part = ["_autogen.projectfiles", "agents", "test_utils", "tests", "tools", "books_sql"]
     include_top_level_dirs = part
 
     folders = list_top_level_folders(args.directory, include_top_level_dirs, exclude_dirs)
