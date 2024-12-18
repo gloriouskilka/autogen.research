@@ -1,6 +1,11 @@
 # =============================================================================
 # test_utils/assertions.py
 # =============================================================================
+import json
+from typing import List
+
+from autogen_core import FunctionCall
+
 
 # Utility functions for asserting expected behaviors.
 

@@ -5,7 +5,9 @@
 # Example test case for the CalculatorAgent using the MockChatCompletionClient.
 
 import asyncio
-from autogen_core import SingleThreadedAgentRuntime, AgentId
+import json
+
+from autogen_core import SingleThreadedAgentRuntime, AgentId, FunctionCall, CancellationToken
 from autogen_core.tool_agent import tool_agent_caller_loop
 from autogen_core.models import SystemMessage, UserMessage
 from test_utils.mock_chat_client import MockChatCompletionClient

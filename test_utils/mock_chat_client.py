@@ -9,7 +9,7 @@ from autogen_core.models import ChatCompletionClient, CreateResult, LLMMessage, 
 from autogen_core._types import FunctionCall
 from autogen_core.models import AssistantMessage, FunctionExecutionResult
 from autogen_core.tools import Tool, ToolSchema
-from typing import List, Optional, Mapping, Any
+from typing import List, Optional, Mapping, Any, Sequence
 from autogen_core import CancellationToken
 import json
 
@@ -22,12 +22,17 @@ class MockChatCompletionClient(ChatCompletionClient):
 
     async def create(
         self,
-        messages: List[LLMMessage],
-        tools: List[Tool | ToolSchema] = [],
+        messages: Sequence[LLMMessage],
+        tools=None,
+        # A value means to override the client default - often specified in the constructor
         json_output: Optional[bool] = None,
-        extra_create_args: Mapping[str, Any] = {},
+        extra_create_args=None,
         cancellation_token: Optional[CancellationToken] = None,
     ) -> CreateResult:
+        if extra_create_args is None:
+            extra_create_args = {}
+        if tools is None:
+            tools = []
         # Simulate the LLM determining to call a function/tool
         # For testing, we can predefine expected function calls
         if self.expected_calls:

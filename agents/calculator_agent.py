@@ -2,11 +2,8 @@
 # agents/calculator_agent.py
 # =============================================================================
 from autogen_core.tool_agent import ToolAgent
-from tools import AddNumbersTool
 
-# An agent that uses a tool to perform calculations.
-
-# from autogen_core import ToolAgent
+from tools.math_tools import AddNumbersTool
 
 
 async def register_calculator_agent(runtime):
