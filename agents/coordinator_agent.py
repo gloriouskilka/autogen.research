@@ -38,20 +38,21 @@ class CoordinatorAgent(RoutedAgent):
 
         agent_id = AgentId(type="data_pipeline_agent", key="default")
 
-        # Send messages to the agent
-        request_a = PipelineARequest(data="some input data")
-        result_a = await self.send_message(message=request_a, recipient=agent_id)
-        logger.debug(f"Pipeline A result: {result_a}")
+        # TODO: based on user_text to decide via LLM which pipeline to run below:
+        if True:
+            request_a = PipelineARequest(data="some input data")
+            pipeline_result = await self.send_message(message=request_a, recipient=agent_id)
+            logger.debug(f"Pipeline A result: {pipeline_result}")
+        else:
+            request_b = PipelineBRequest(data="some other input data")
+            pipeline_result = await self.send_message(message=request_b, recipient=agent_id)
+            logger.debug(f"Pipeline B result: {pipeline_result}")
 
-        request_b = PipelineBRequest(data="some other input data")
-        result_b = await self.send_message(message=request_b, recipient=agent_id)
-        logger.debug(f"Pipeline B result: {result_b}")
-
-        # For the final pipeline
-        request_final = FinalPipelineRequest(
-            dataframe=result_a.dataframe, info=result_a.description_dict  # Assuming result_a is of type PipelineResult
-        )
-        result_final = await self.send_message(message=request_final, recipient=agent_id)
+        # # For the final pipeline
+        # request_final = FinalPipelineRequest(
+        #     dataframe=result_a.dataframe, info=result_a.description_dict  # Assuming result_a is of type PipelineResult
+        # )
+        # result_final = await self.send_message(message=request_final, recipient=agent_id)
 
         # # # tool_agent_id = await self.runtime.get("tool_agent_type", key="tool_agent")
         # tool_agent_id = await self.runtime.get("tool_agent_type", key="default")
@@ -67,41 +68,41 @@ class CoordinatorAgent(RoutedAgent):
         #     caller_source="assistant",
         # )
 
-        # Extract result data
-        last_message_content = None
-        for msg in reversed(generated_messages):
-            if isinstance(msg, AssistantMessage):
-                if isinstance(msg.content, str):
-                    last_message_content = msg.content
-                    break
-                elif isinstance(msg.content, list):
-                    continue  # Skip function calls
+        # # Extract result data
+        # last_message_content = None
+        # for msg in reversed(generated_messages):
+        #     if isinstance(msg, AssistantMessage):
+        #         if isinstance(msg.content, str):
+        #             last_message_content = msg.content
+        #             break
+        #         elif isinstance(msg.content, list):
+        #             continue  # Skip function calls
+        #
+        # if last_message_content:
+        # Deserialize the result (assuming JSON format)
+        # result_data = json.loads(last_message_content)
+        # pipeline_result = PipelineResult(
+        #     dataframe=result_data["dataframe"], description_dict=result_data["description_dict"]
+        # )
 
-        if last_message_content:
-            # Deserialize the result (assuming JSON format)
-            result_data = json.loads(last_message_content)
-            pipeline_result = PipelineResult(
-                dataframe=result_data["dataframe"], description_dict=result_data["description_dict"]
-            )
+        # Proceed to the middle decider agent
+        # middle_decider_agent_id = await self.runtime.get("middle_decider_agent_type", key="middle_decider_agent")
+        middle_decider_agent_id = await self.runtime.get("middle_decider_agent_type", key="default")
+        decision_info = await self.send_message(
+            message=pipeline_result.description_dict,
+            recipient=middle_decider_agent_id,
+            cancellation_token=ctx.cancellation_token,
+        )
 
-            # Proceed to the middle decider agent
-            # middle_decider_agent_id = await self.runtime.get("middle_decider_agent_type", key="middle_decider_agent")
-            middle_decider_agent_id = await self.runtime.get("middle_decider_agent_type", key="default")
-            decision_info = await self.send_message(
-                message=pipeline_result.description_dict,
-                recipient=middle_decider_agent_id,
-                cancellation_token=ctx.cancellation_token,
-            )
+        # Proceed to final pipeline
+        # final_pipeline_agent_id = await self.runtime.get("final_pipeline_agent_type", key="final_pipeline_agent")
+        final_pipeline_agent_id = await self.runtime.get("final_pipeline_agent_type", key="default")
+        final_input = FinalPipelineInput(dataframe=pipeline_result.dataframe, info=decision_info.info)
 
-            # Proceed to final pipeline
-            # final_pipeline_agent_id = await self.runtime.get("final_pipeline_agent_type", key="final_pipeline_agent")
-            final_pipeline_agent_id = await self.runtime.get("final_pipeline_agent_type", key="default")
-            final_input = FinalPipelineInput(dataframe=pipeline_result.dataframe, info=decision_info.info)
+        final_result = await self.send_message(
+            message=final_input, recipient=final_pipeline_agent_id, cancellation_token=ctx.cancellation_token
+        )
 
-            final_result = await self.send_message(
-                message=final_input, recipient=final_pipeline_agent_id, cancellation_token=ctx.cancellation_token
-            )
+        return FinalResult(result=final_result.result)
 
-            return FinalResult(result=final_result.result)
-
-        return FinalResult(result="Error: Unable to process input.")
+        # return FinalResult(result="Error: Unable to process input.")
