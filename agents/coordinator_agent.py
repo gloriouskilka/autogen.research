@@ -1,9 +1,9 @@
 # agents/coordinator_agent.py
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.base import Handoff
-from autogen_agentchat.conditions import MaxMessageTermination
+from autogen_agentchat.conditions import MaxMessageTermination, HandoffTermination
 from autogen_agentchat.messages import HandoffMessage
-from autogen_agentchat.teams import RoundRobinGroupChat
+from autogen_agentchat.teams import RoundRobinGroupChat, Swarm
 from autogen_core import RoutedAgent, rpc, MessageContext, AgentId
 from autogen_core.models import LLMMessage, SystemMessage, UserMessage, AssistantMessage
 from autogen_core.tool_agent import tool_agent_caller_loop
@@ -36,52 +36,67 @@ class CoordinatorAgent(RoutedAgent):
         self.model_client = model_client
 
     # Define your verification functions as tools
-    async def verify_pipeline_a_input_correctness(self, sock_type: str) -> bool:
+    async def verify_pipeline_a_input_correctness(self, sock_type: str) -> str | bool:
         if not any(it in sock_type for it in ["wool", "cotton", "polyester"]):
             return False
-        return True
+        return sock_type
 
-    async def verify_pipeline_b_input_correctness(self, list_of_apple_juices: list) -> bool:
+    async def verify_pipeline_b_input_correctness(self, list_of_apple_juices: List[str]) -> List[str] | bool:
         if any("apple" not in juice for juice in list_of_apple_juices):
             return False
-        return True
+        return list_of_apple_juices
 
     @rpc
     async def handle_user_input(self, message: UserInput, ctx: MessageContext) -> FinalResult:
+        # Define the assistant agent
         pipeline_selector = AssistantAgent(
             name="pipeline_selector",
             model_client=self.model_client,
             system_message=(
-                "You are a coordinator assistant that decides which pipeline to use based on the user's input. "
-                "Use the available tools to verify the input data before proceeding. "
-                "If both pipelines are valid, select pipeline_a. "
-                "If neither pipeline is valid, hand off to the user with an error message."
+                "You are a coordinator assistant that decides which pipeline to use based on the user's input.\n"
+                "Use the available tools to verify the input data before proceeding.\n"
+                "If both pipelines are valid, select pipeline_a.\n"
+                "If neither pipeline is valid, hand off to the user with an error message.\n"
+                "Include the parsed parameters in the handoff message using {parameters}."
             ),
             tools=[self.verify_pipeline_a_input_correctness, self.verify_pipeline_b_input_correctness],
-            handoffs=[
-                Handoff(
-                    target="pipeline_a",
-                    name="handoff_to_pipeline_a",
-                    description="Hand off to pipeline_a.",
-                    message="{parameters}",
-                ),
-                Handoff(
-                    target="pipeline_b",
-                    name="handoff_to_pipeline_b",
-                    description="Hand off to pipeline_b.",
-                    message="{parameters}",
-                ),
-                Handoff(
-                    target="user",
-                    name="handoff_to_user",
-                    description="Hand off to the user when unable to decide.",
-                    message="Unable to decide; please provide more information.",
-                ),
-            ],
+            handoffs=["pipeline_a", "pipeline_b", "user"],
+            #     Handoff(
+            #         target="pipeline_a",
+            #         name="handoff_to_pipeline_a",
+            #         description="Hand off to pipeline_a.",
+            #         message="{parameters}",
+            #     ),
+            #     Handoff(
+            #         target="pipeline_b",
+            #         name="handoff_to_pipeline_b",
+            #         description="Hand off to pipeline_b.",
+            #         message="{parameters}",
+            #     ),
+            #     Handoff(
+            #         target="user",
+            #         name="handoff_to_user",
+            #         description="Hand off to the user when unable to decide.",
+            #         message="Unable to decide; please provide more information.",
+            #     ),
+            # ],
         )
 
-        # Run the AssistantAgent with the user's input
-        result = await pipeline_selector.run(task=message.text)
+        # Set up termination conditions for the assistant agent
+        termination = (
+            HandoffTermination(target="pipeline_a")
+            | HandoffTermination(target="pipeline_b")
+            | HandoffTermination(target="user")
+            | MaxMessageTermination(5)
+        )
+
+        # Create a Swarm with the assistant agent
+        team = Swarm(participants=[pipeline_selector], termination_condition=termination)
+
+        # Run the Swarm with the user's task
+        result = await team.run(task=message.text)
+
+        # Get the last message from the assistant agent
         last_message = result.messages[-1]
 
         # Check if the last message is a HandoffMessage
