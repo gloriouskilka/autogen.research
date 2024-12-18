@@ -12,16 +12,7 @@ from autogen_core import (
 )
 
 from utils.data_utils import process_data_pipeline_a, process_data_pipeline_b, analyze_full_data
-
-
-# Define your function outputs
-class PipelineResult(BaseModel):
-    dataframe: Dict
-    description_dict: Dict
-
-
-class OverviewInfo(BaseModel):
-    overview: Dict
+from agents.common import PipelineResult, OverviewInfo
 
 
 # Assume these are your processing functions
