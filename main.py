@@ -47,10 +47,21 @@ async def main():
         type="coordinator_agent_type",
         factory=lambda: CoordinatorAgent(model_client),
     )
+
+    # If custom agents are needed, they can be registered here
+    # cathy = await Assistant.register(
+    #     runtime,
+    #     "cathy",
+    #     lambda: Assistant(name="Cathy", model_client=get_model_client()),
+    # )
+
     await MiddleDeciderAgent.register(
         runtime=runtime,
         type="middle_decider_agent_type",
-        factory=lambda: MiddleDeciderAgent(model_client),
+        factory=lambda: MiddleDeciderAgent(
+            description="Analyse the data and write a summary for the user - what to do to improve the results",
+            model_client=model_client,
+        ),
     )
     await AnalysisAgent.register(
         runtime=runtime, type="analysis_agent_type", factory=lambda: AnalysisAgent(model_client)
