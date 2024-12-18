@@ -5,7 +5,7 @@ from autogen_core.models import LLMMessage, SystemMessage, UserMessage, Assistan
 from autogen_core.tool_agent import tool_agent_caller_loop
 from loguru import logger
 
-from agents.common import UserInput, FinalResult, PipelineResult, DecisionInfo, FinalPipelineInput
+from agents.common import UserInput, FinalResult, PipelineResult, DecisionInfo, FinalPipelineInput, DescriptionDict
 from typing import List
 from tools.function_tools import (
     # pipeline_a_tool,
@@ -89,7 +89,7 @@ class CoordinatorAgent(RoutedAgent):
         # middle_decider_agent_id = await self.runtime.get("middle_decider_agent_type", key="middle_decider_agent")
         middle_decider_agent_id = await self.runtime.get("middle_decider_agent_type", key="default")
         decision_info = await self.send_message(
-            message=pipeline_result.description_dict,
+            message=DescriptionDict(description=pipeline_result.description_dict),
             recipient=middle_decider_agent_id,
             cancellation_token=ctx.cancellation_token,
         )
