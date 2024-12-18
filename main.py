@@ -11,8 +11,6 @@ from agents.coordinator_agent import CoordinatorAgent
 from agents.middle_decider_agent import MiddleDeciderAgent
 from agents.analysis_agent import AnalysisAgent
 
-# from agents.pipeline_a_agent import PipelineAAgent
-# from agents.pipeline_b_agent import PipelineBAgent
 from agents.final_pipeline_agent import FinalPipelineAgent
 from autogen_core.tool_agent import ToolAgent
 from tools.function_tools import (

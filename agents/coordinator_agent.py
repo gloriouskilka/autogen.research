@@ -39,12 +39,12 @@ class CoordinatorAgent(RoutedAgent):
     async def verify_pipeline_a_input_correctness(self, sock_type: str) -> str | bool:
         if not any(it in sock_type for it in ["wool", "cotton", "polyester"]):
             return False
-        return sock_type
+        return HandoffMessage(content=sock_type, source="assistant", target="pipeline_a")
 
     async def verify_pipeline_b_input_correctness(self, list_of_apple_juices: List[str]) -> List[str] | bool:
         if any("apple" not in juice for juice in list_of_apple_juices):
             return False
-        return list_of_apple_juices
+        return HandoffMessage(content=str(list_of_apple_juices), source="assistant", target="pipeline_a")
 
     @rpc
     async def handle_user_input(self, message: UserInput, ctx: MessageContext) -> FinalResult:
@@ -60,26 +60,11 @@ class CoordinatorAgent(RoutedAgent):
                 "Include the parsed parameters in the handoff message using {parameters}."
             ),
             tools=[self.verify_pipeline_a_input_correctness, self.verify_pipeline_b_input_correctness],
-            handoffs=["pipeline_a", "pipeline_b", "user"],
-            #     Handoff(
-            #         target="pipeline_a",
-            #         name="handoff_to_pipeline_a",
-            #         description="Hand off to pipeline_a.",
-            #         message="{parameters}",
-            #     ),
-            #     Handoff(
-            #         target="pipeline_b",
-            #         name="handoff_to_pipeline_b",
-            #         description="Hand off to pipeline_b.",
-            #         message="{parameters}",
-            #     ),
-            #     Handoff(
-            #         target="user",
-            #         name="handoff_to_user",
-            #         description="Hand off to the user when unable to decide.",
-            #         message="Unable to decide; please provide more information.",
-            #     ),
-            # ],
+            handoffs=[
+                Handoff(target="pipeline_a", message="pipeline_a"),
+                Handoff(target="pipeline_b", message="pipeline_b"),
+                Handoff(target="user", message="user"),
+            ],
         )
 
         # Set up termination conditions for the assistant agent
@@ -105,20 +90,18 @@ class CoordinatorAgent(RoutedAgent):
             if handoff_msg.target == "pipeline_a":
                 # Process handoff to pipeline_a
                 data = handoff_msg.content  # Extract parameters if needed
-                request_a = PipelineARequest(data=data)
                 pipeline_result = await self.send_message(
-                    message=request_a,
-                    recipient=AgentId(type="pipeline_a_agent", key="default"),
+                    message=PipelineARequest(data=data),
+                    recipient=AgentId(type="data_pipeline_agent", key="default"),
                     cancellation_token=ctx.cancellation_token,
                 )
                 logger.debug(f"Pipeline A result: {pipeline_result}")
             elif handoff_msg.target == "pipeline_b":
                 # Process handoff to pipeline_b
                 data = handoff_msg.content
-                request_b = PipelineBRequest(data=data)
                 pipeline_result = await self.send_message(
-                    message=request_b,
-                    recipient=AgentId(type="pipeline_b_agent", key="default"),
+                    message=PipelineBRequest(data=data),
+                    recipient=AgentId(type="data_pipeline_agent", key="default"),
                     cancellation_token=ctx.cancellation_token,
                 )
                 logger.debug(f"Pipeline B result: {pipeline_result}")
@@ -133,7 +116,7 @@ class CoordinatorAgent(RoutedAgent):
 
         # Proceed to the middle decider agent
         middle_decider_agent_id = await self.runtime.get("middle_decider_agent_type", key="default")
-        decision_info = await self.send_message(
+        decision_info: str = await self.send_message(
             message=DescriptionDict(description=pipeline_result.description_dict),
             recipient=middle_decider_agent_id,
             cancellation_token=ctx.cancellation_token,
@@ -141,7 +124,7 @@ class CoordinatorAgent(RoutedAgent):
 
         # Proceed to final pipeline
         final_pipeline_agent_id = await self.runtime.get("final_pipeline_agent_type", key="default")
-        final_input = FinalPipelineInput(dataframe=pipeline_result.dataframe, info=decision_info.info)
+        final_input = FinalPipelineInput(dataframe=pipeline_result.dataframe, info={"decision": decision_info})
 
         final_result = await self.send_message(
             message=final_input,
