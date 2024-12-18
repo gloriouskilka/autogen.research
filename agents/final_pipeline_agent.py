@@ -19,7 +19,7 @@ class FinalPipelineAgent(RoutedAgent):
 
         # Proceed to the analysis agent
         # analysis_agent_id = await self.runtime.get("analysis_agent_type", key="analysis_agent")
-        analysis_agent_id = await self.runtime.get("analysis_agent_type")
+        analysis_agent_id = await self.runtime.get("analysis_agent_type", key="default")
         analysis_result = await self.send_message(
             message=overview_info,  # We'll define a proper message class next
             recipient=analysis_agent_id,

@@ -86,7 +86,7 @@ class CoordinatorAgent(RoutedAgent):
 
             # Proceed to the middle decider agent
             # middle_decider_agent_id = await self.runtime.get("middle_decider_agent_type", key="middle_decider_agent")
-            middle_decider_agent_id = await self.runtime.get("middle_decider_agent_type")
+            middle_decider_agent_id = await self.runtime.get("middle_decider_agent_type", key="default")
             decision_info = await self.send_message(
                 message=pipeline_result.description_dict,
                 recipient=middle_decider_agent_id,
@@ -95,7 +95,7 @@ class CoordinatorAgent(RoutedAgent):
 
             # Proceed to final pipeline
             # final_pipeline_agent_id = await self.runtime.get("final_pipeline_agent_type", key="final_pipeline_agent")
-            final_pipeline_agent_id = await self.runtime.get("final_pipeline_agent_type")
+            final_pipeline_agent_id = await self.runtime.get("final_pipeline_agent_type", key="default")
             final_input = FinalPipelineInput(dataframe=pipeline_result.dataframe, info=decision_info.info)
 
             final_result = await self.send_message(

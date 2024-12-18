@@ -82,7 +82,7 @@ async def main():
     runtime.start()
 
     # Simulate user input and initiate processing
-    coordinator_agent_id = await runtime.get("coordinator_agent_type")
+    coordinator_agent_id = await runtime.get("coordinator_agent_type", key="default")
     # user_input_text = input("Enter your request: ")
     user_input_text = "Process the data using Pipeline A and then finalize the results"
     user_input = UserInput(text=user_input_text)
