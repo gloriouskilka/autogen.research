@@ -29,12 +29,14 @@ class CoordinatorAgent(RoutedAgent):
     def verify_pipeline_a_input_correctness(self, sock_type: str) -> bool:
         if sock_type not in ["wool", "cotton", "polyester"]:
             return False
-        return Handoff(target="pipeline_a", message=sock_type)
+        return True
+        # return Handoff(target="pipeline_a", message=sock_type)
 
     def verify_pipeline_b_input_correctness(self, list_of_apple_juices: List[str]) -> bool:
         if any("apple" not in juice for juice in list_of_apple_juices):
             return False
-        return Handoff(target="pipeline_b", message=str(list_of_apple_juices))
+        return True
+        # return Handoff(target="pipeline_b", message=str(list_of_apple_juices))
 
     @rpc
     async def handle_user_input(self, message: UserInput, ctx: MessageContext) -> FinalResult:
@@ -43,7 +45,11 @@ class CoordinatorAgent(RoutedAgent):
             model_client=self.model_client,
             system_message=f"Choose a pipeline to run: pipeline_a or pipeline_b. Always verify the input data before proceeding. If both pipelines are valid, pipeline_a will be selected. If neither pipeline is valid, an error will be returned.",
             tools=[self.verify_pipeline_a_input_correctness, self.verify_pipeline_b_input_correctness],
-            handoffs=["pipeline_a", "pipeline_b", "error_selecting"],  # TODO: error_selecting doesn't work
+            handoffs=[
+                Handoff(target="pipeline_a"),
+                Handoff(target="pipeline_b"),
+                Handoff(target="user"),
+            ],
         )
         result = await pipeline_selector.run(task=message.text)
         content = result.messages[-1].content
