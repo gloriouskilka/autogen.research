@@ -31,6 +31,26 @@ async def final_pipeline(dataframe: Dict, info: Dict, cancellation_token: Cancel
     return overview_info
 
 
+# tools/function_tools.py
+
+from autogen_core.tools import FunctionTool
+from autogen_core import CancellationToken
+
+# from utils.data_utils import calculate_statistics
+
+
+async def calculate_statistics(description_dict: dict, cancellation_token: CancellationToken = None) -> dict:
+    # Implement your logic to calculate statistics from the description_dict
+    # For example:
+    # Add more statistical calculations as needed
+    return {"num_columns": len(description_dict.get("columns", [])), "summary": description_dict.get("summary", "")}
+
+
+calculate_statistics_tool = FunctionTool(
+    func=calculate_statistics, description="Calculate statistical summaries from the data description."
+)
+
+
 # Define message types for your agent
 class PipelineARequest(BaseModel):
     data: str

@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Dict, Any
 
+from pydantic import BaseModel
+
 
 @dataclass
 class UserInput:
@@ -30,7 +32,7 @@ class FinalPipelineInput:
 
 
 @dataclass
-class DescriptionDict:
+class DescriptionDict(BaseModel):
     description: Dict[str, Any]
 
 
