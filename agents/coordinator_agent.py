@@ -1,6 +1,7 @@
 # agents/coordinator_agent.py
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import MaxMessageTermination
+from autogen_agentchat.messages import HandoffMessage
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_core import RoutedAgent, rpc, MessageContext, AgentId
 from autogen_core.models import LLMMessage, SystemMessage, UserMessage, AssistantMessage
@@ -27,12 +28,12 @@ class CoordinatorAgent(RoutedAgent):
     def verify_pipeline_a_input_correctness(self, sock_type: str) -> bool:
         if sock_type not in ["wool", "cotton", "polyester"]:
             return False
-        return True
+        return HandoffMessage(target="pipeline_a", content=sock_type)
 
     def verify_pipeline_b_input_correctness(self, list_of_apple_juices: List[str]) -> bool:
         if any("apple" not in juice for juice in list_of_apple_juices):
             return False
-        return True
+        return HandoffMessage(target="pipeline_b", content=str(list_of_apple_juices))
 
     @rpc
     async def handle_user_input(self, message: UserInput, ctx: MessageContext) -> FinalResult:
