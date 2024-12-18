@@ -16,7 +16,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from pydantic import Field, BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from util.tracing import LangFuseExporter
+# from util.tracing import LangFuseExporter
 
 
 class Settings(BaseSettings):

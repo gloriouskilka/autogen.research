@@ -1,5 +1,8 @@
 from langfuse import Langfuse
-from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
+from opentelemetry import trace
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SpanExporter, BatchSpanProcessor
 
 
 class LangFuseExporter(SpanExporter):
@@ -65,3 +68,27 @@ def ns_to_datetime(timestamp_ns):
 
     timestamp_sec = timestamp_ns / 1e9  # Convert nanoseconds to seconds
     return datetime.fromtimestamp(timestamp_sec, tz=timezone.utc)
+
+
+def configure_tracing(langfuse_client: Langfuse):
+    tracer_provider = TracerProvider(
+        resource=Resource(
+            attributes={
+                "service.name": "my-service",
+                "service.version": "1.0.0",
+            }
+        )
+    )
+    tracer_provider.add_span_processor(BatchSpanProcessor(LangFuseExporter(langfuse_client=langfuse_client)))
+
+    # # Adding Graphana / Prometheus
+    # tracer_provider.add_span_processor(
+    #     BatchSpanProcessor(
+    #         OTLPSpanExporter(
+    #             endpoint="http://localhost:4317",
+    #         )
+    #     )
+    # )
+
+    trace.set_tracer_provider(tracer_provider)
+    return tracer_provider
