@@ -16,9 +16,10 @@ from agents.analysis_agent import AnalysisAgent
 from agents.final_pipeline_agent import FinalPipelineAgent
 from autogen_core.tool_agent import ToolAgent
 from tools.function_tools import (
-    pipeline_a_tool,
-    pipeline_b_tool,
-    final_pipeline_tool,
+    # pipeline_a_tool,
+    # pipeline_b_tool,
+    # final_pipeline_tool,
+    DataPipelineAgent,
     # query_tool,
 )
 from agents.common import UserInput
@@ -56,14 +57,27 @@ async def main():
     )
     await FinalPipelineAgent.register(runtime=runtime, type="final_pipeline_agent_type", factory=FinalPipelineAgent)
 
-    await ToolAgent.register(
+    # Create the data pipeline agent
+    # data_pipeline_agent = DataPipelineAgent()
+
+    # Create the runtime
+    runtime = SingleThreadedAgentRuntime()
+    # Register the agent
+    # await data_pipeline_agent
+
+    await DataPipelineAgent.register(
         runtime,
-        "tool_agent_type",
-        lambda: ToolAgent(
-            description="Pipeline Tool Agent",
-            tools=[pipeline_a_tool, pipeline_b_tool, final_pipeline_tool],
-        ),
+        "data_pipeline_agent",
+        lambda: DataPipelineAgent(),
     )
+    # await ToolAgent.register(
+    #     runtime,
+    #     "tool_agent_type",
+    #     lambda: ToolAgent(
+    #         description="Pipeline Tool Agent",
+    #         tools=[pipeline_a_tool, pipeline_b_tool, final_pipeline_tool],
+    #     ),
+    # )
 
     runtime.start()
 

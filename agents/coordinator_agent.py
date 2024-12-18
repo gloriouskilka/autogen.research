@@ -1,12 +1,19 @@
 # agents/coordinator_agent.py
 
-from autogen_core import RoutedAgent, rpc, MessageContext
+from autogen_core import RoutedAgent, rpc, MessageContext, AgentId
 from autogen_core.models import LLMMessage, SystemMessage, UserMessage, AssistantMessage
 from autogen_core.tool_agent import tool_agent_caller_loop
+from loguru import logger
 
 from agents.common import UserInput, FinalResult, PipelineResult, DecisionInfo, FinalPipelineInput
 from typing import List
-from tools.function_tools import pipeline_a_tool, pipeline_b_tool
+from tools.function_tools import (
+    # pipeline_a_tool,
+    # pipeline_b_tool,
+    PipelineARequest,
+    PipelineBRequest,
+    FinalPipelineRequest,
+)
 import json
 
 
@@ -19,29 +26,46 @@ class CoordinatorAgent(RoutedAgent):
     async def handle_user_input(self, message: UserInput, ctx: MessageContext) -> FinalResult:
         user_text = message.text
 
-        input_messages: List[LLMMessage] = [
-            SystemMessage(
-                content="""
-You are an assistant that decides which initial processing function to call based on user input.
-Available functions are pipeline_a and pipeline_b.
-"""
-            ),
-            UserMessage(content=user_text, source="user"),
-        ]
+        #         input_messages: List[LLMMessage] = [
+        #             SystemMessage(
+        #                 content="""
+        # You are an assistant that decides which initial processing function to call based on user input.
+        # Available functions are pipeline_a and pipeline_b.
+        # """
+        #             ),
+        #             UserMessage(content=user_text, source="user"),
+        #         ]
 
-        # tool_agent_id = await self.runtime.get("tool_agent_type", key="tool_agent")
-        tool_agent_id = await self.runtime.get("tool_agent_type")
+        agent_id = AgentId(type="data_pipeline_agent", key="default")
 
-        # Use the caller loop to decide initial pipeline
-        generated_messages = await tool_agent_caller_loop(
-            caller=self,
-            tool_agent_id=tool_agent_id,
-            model_client=self.model_client,
-            input_messages=input_messages,
-            tool_schema=[pipeline_a_tool.schema, pipeline_b_tool.schema],
-            cancellation_token=ctx.cancellation_token,
-            caller_source="assistant",
+        # Send messages to the agent
+        request_a = PipelineARequest(data="some input data")
+        result_a = await self.send_message(message=request_a, recipient=agent_id)
+        logger.debug(f"Pipeline A result: {result_a}")
+
+        request_b = PipelineBRequest(data="some other input data")
+        result_b = await self.send_message(message=request_b, recipient=agent_id)
+        logger.debug(f"Pipeline B result: {result_b}")
+
+        # For the final pipeline
+        request_final = FinalPipelineRequest(
+            dataframe=result_a.dataframe, info=result_a.description_dict  # Assuming result_a is of type PipelineResult
         )
+        result_final = await self.send_message(message=request_final, recipient=agent_id)
+
+        # # # tool_agent_id = await self.runtime.get("tool_agent_type", key="tool_agent")
+        # tool_agent_id = await self.runtime.get("tool_agent_type", key="default")
+        #
+        # # Use the caller loop to decide initial pipeline
+        # generated_messages = await tool_agent_caller_loop(
+        #     caller=self,
+        #     tool_agent_id=tool_agent_id,
+        #     model_client=self.model_client,
+        #     input_messages=input_messages,
+        #     tool_schema=[pipeline_a_tool.schema, pipeline_b_tool.schema],
+        #     cancellation_token=ctx.cancellation_token,
+        #     caller_source="assistant",
+        # )
 
         # Extract result data
         last_message_content = None

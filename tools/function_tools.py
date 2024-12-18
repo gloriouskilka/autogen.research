@@ -1,14 +1,30 @@
-from autogen_core.tools import FunctionTool
-from typing import Dict, Any
-from utils.data_utils import (
-    process_data_pipeline_a,
-    process_data_pipeline_b,
-    analyze_full_data,
+import asyncio
+from typing import Dict
+from pydantic import BaseModel
+from autogen_core import (
+    RoutedAgent,
+    message_handler,
+    MessageContext,
+    AgentId,
+    SingleThreadedAgentRuntime,
+    CancellationToken,
+    AgentRuntime,
 )
-from autogen_core import CancellationToken
-from agents.common import PipelineResult, OverviewInfo
+
+from utils.data_utils import process_data_pipeline_a, process_data_pipeline_b, analyze_full_data
 
 
+# Define your function outputs
+class PipelineResult(BaseModel):
+    dataframe: Dict
+    description_dict: Dict
+
+
+class OverviewInfo(BaseModel):
+    overview: Dict
+
+
+# Assume these are your processing functions
 async def pipeline_a(data: str, cancellation_token: CancellationToken = None) -> PipelineResult:
     dataframe, description_dict = process_data_pipeline_a(data)
     return PipelineResult(dataframe=dataframe.to_dict(), description_dict=description_dict)
@@ -24,7 +40,36 @@ async def final_pipeline(dataframe: Dict, info: Dict, cancellation_token: Cancel
     return overview_info
 
 
-# Wrap functions as tools
-pipeline_a_tool = FunctionTool(func=pipeline_a, description="Process data using Pipeline A.")
-pipeline_b_tool = FunctionTool(func=pipeline_b, description="Process data using Pipeline B.")
-final_pipeline_tool = FunctionTool(func=final_pipeline, description="Execute the final data processing pipeline.")
+# Define message types for your agent
+class PipelineARequest(BaseModel):
+    data: str
+
+
+class PipelineBRequest(BaseModel):
+    data: str
+
+
+class FinalPipelineRequest(BaseModel):
+    dataframe: Dict
+    info: Dict
+
+
+# Create the agent that handles these messages
+class DataPipelineAgent(RoutedAgent):
+    def __init__(self, description: str = "Data Pipeline Agent"):
+        super().__init__(description)
+
+    @message_handler
+    async def handle_pipeline_a(self, message: PipelineARequest, ctx: MessageContext) -> PipelineResult:
+        result = await pipeline_a(message.data, cancellation_token=ctx.cancellation_token)
+        return result
+
+    @message_handler
+    async def handle_pipeline_b(self, message: PipelineBRequest, ctx: MessageContext) -> PipelineResult:
+        result = await pipeline_b(message.data, cancellation_token=ctx.cancellation_token)
+        return result
+
+    @message_handler
+    async def handle_final_pipeline(self, message: FinalPipelineRequest, ctx: MessageContext) -> OverviewInfo:
+        result = await final_pipeline(message.dataframe, message.info, cancellation_token=ctx.cancellation_token)
+        return result
