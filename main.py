@@ -57,27 +57,11 @@ async def main():
     )
     await FinalPipelineAgent.register(runtime=runtime, type="final_pipeline_agent_type", factory=FinalPipelineAgent)
 
-    # Create the data pipeline agent
-    # data_pipeline_agent = DataPipelineAgent()
-
-    # Create the runtime
-    runtime = SingleThreadedAgentRuntime()
-    # Register the agent
-    # await data_pipeline_agent
-
     await DataPipelineAgent.register(
         runtime,
         "data_pipeline_agent",
         lambda: DataPipelineAgent(),
     )
-    # await ToolAgent.register(
-    #     runtime,
-    #     "tool_agent_type",
-    #     lambda: ToolAgent(
-    #         description="Pipeline Tool Agent",
-    #         tools=[pipeline_a_tool, pipeline_b_tool, final_pipeline_tool],
-    #     ),
-    # )
 
     runtime.start()
 
