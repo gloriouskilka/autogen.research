@@ -72,7 +72,9 @@ async def main():
     runtime.start()
 
     # , cancellation_token: CancellationToken
-    def decide_filters(filters_mapped: Annotated[Filters, "Mapped filters from user's query"]) -> Filters:
+    def decide_filters(
+        filters_mapped: Annotated[Filters, "Mapped filters from user's query"], additionalProperties: bool = False
+    ) -> Filters:
         return Filters(**filters_mapped.model_dump())
 
     system_message = (
