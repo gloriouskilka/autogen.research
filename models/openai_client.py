@@ -65,23 +65,26 @@ def convert_tools(
             assert isinstance(tool, dict)
             tool_schema = tool
 
-        result.append(
-            ChatCompletionToolParam(
-                type="function",
-                function=FunctionDefinition(
-                    name=tool_schema["name"],
-                    description=(tool_schema["description"] if "description" in tool_schema else ""),
-                    parameters=(
-                        cast(FunctionParameters, tool_schema["parameters"]) if "parameters" in tool_schema else {}
-                    ),
-                    strict=True,  # Code change: added strict to the function definition
-                ).model_dump(),  # Weird, but later in the code it expects a dict, not a model
-            )
+        param_dict: dict = ChatCompletionToolParam(
+            type="function",
+            function=FunctionDefinition(
+                name=tool_schema["name"],
+                description=(tool_schema["description"] if "description" in tool_schema else ""),
+                parameters=(cast(FunctionParameters, tool_schema["parameters"]) if "parameters" in tool_schema else {}),
+                strict=True,  # Code change: added strict to the function definition
+            ).model_dump(),
         )
+        parameters_dict = param_dict["function"]["parameters"]
+        parameters_dict["additionalProperties"] = False
+
+        result.append(param_dict)
+    # convert to list of dicts
+    # result = [dict(x) for x in result]
+
     # Check if all tools have valid names.
     for tool_param in result:
         assert_valid_name(tool_param["function"]["name"])
-        tool_param["function"]["parameters"]["additionalProperties"] = False
+        # tool_param["function"]["parameters"]["additionalProperties"] = False
         # assert_valid_name(tool_param["function"].name)
     return result
 
