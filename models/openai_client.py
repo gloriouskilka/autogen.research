@@ -27,9 +27,9 @@ from autogen_ext.models.openai._openai_client import (
 )
 from click import Choice
 from loguru import logger
-from openai import BaseModel
 from openai.types import FunctionDefinition, FunctionParameters
 from openai.types.chat import ParsedChatCompletion, ChatCompletion, ParsedChoice, ChatCompletionToolParam
+from pydantic import BaseModel
 from typing_extensions import Unpack
 
 

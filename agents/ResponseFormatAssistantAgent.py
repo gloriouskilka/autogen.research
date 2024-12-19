@@ -30,6 +30,13 @@ from loguru import logger
 from pydantic import BaseModel
 
 
+# TODO: DEBUG:
+class Filters(BaseModel):
+    reason: str
+    filters: Dict[str, List[str]] | None
+    successful: bool
+
+
 class ResponseFormatAssistantAgent(AssistantAgent):
     """An agent that provides assistance with tool use.
 
@@ -304,6 +311,7 @@ class ResponseFormatAssistantAgent(AssistantAgent):
 
         # Generate an inference result based on the current model context.
         llm_messages = self._system_messages + self._model_context
+
         result = await self._model_client.create(
             llm_messages,
             tools=self._tools + self._handoff_tools,
