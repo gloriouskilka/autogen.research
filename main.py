@@ -27,7 +27,8 @@ from agents.common import UserInput
 
 from utils.settings import settings
 from utils.tracing import configure_tracing
-from workers.worker_agent import worker_runtime_client
+
+# from workers.worker_agent import worker_runtime_client
 
 
 async def main():
@@ -71,13 +72,13 @@ async def main():
         lambda: DataPipelineAgent(),
     )
 
-    # GRPC host start
-    worker_host = GrpcWorkerAgentRuntimeHost(address=settings.worker_host_address)
-    worker_host.start()
+    # # GRPC host start
+    # worker_host = GrpcWorkerAgentRuntimeHost(address=settings.worker_host_address)
+    # worker_host.start()
 
     # Initialize the gRPC client
     # host_address=settings.worker_host_address, extra_grpc_config=extra_grpc_config
-    worker_runtime_client.start()
+    # worker_runtime_client.start()
 
     runtime.start()
 
@@ -94,8 +95,8 @@ async def main():
     logger.debug(final_result.result)
 
     await runtime.stop()
-    await worker_host.stop_when_signal()
-    await worker_runtime_client.stop_when_signal()
+    # await worker_host.stop_when_signal()
+    # await worker_runtime_client.stop_when_signal()
 
 
 if __name__ == "__main__":
