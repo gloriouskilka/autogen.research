@@ -81,6 +81,8 @@ def convert_tools(
     # Check if all tools have valid names.
     for tool_param in result:
         assert_valid_name(tool_param["function"]["name"])
+        tool_param["function"]["additionalProperties"] = False
+        tool_param["additionalProperties"] = False
         # assert_valid_name(tool_param["function"].name)
     return result
 
