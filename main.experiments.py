@@ -7,7 +7,7 @@ from autogen_agentchat.messages import TextMessage
 from autogen_agentchat.ui import Console
 
 # from config import OPENAI_API_KEY, MODEL_NAME, DATABASE_PATH
-from autogen_core import SingleThreadedAgentRuntime, CancellationToken
+from autogen_core import SingleThreadedAgentRuntime, CancellationToken, MessageContext
 
 # from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_ext.runtimes.grpc import GrpcWorkerAgentRuntime, GrpcWorkerAgentRuntimeHost
@@ -72,6 +72,11 @@ async def handle_verification(verification, expected_function_calls):
 
 
 async def main():
+    model_client = OpenAIChatCompletionClientWrapper(
+        model="gpt-4o-mini",
+        api_key=settings.openai_api_key,
+    )
+
     langfuse = Langfuse(
         secret_key=settings.langfuse_secret_key,
         public_key=settings.langfuse_public_key,
@@ -82,6 +87,44 @@ async def main():
 
     tracer_provider = configure_tracing(langfuse_client=langfuse)
     runtime = SingleThreadedAgentRuntime(tracer_provider=tracer_provider)
+
+    await CoordinatorAgent.register(
+        runtime=runtime,
+        type="coordinator_agent_type",
+        factory=lambda: CoordinatorAgent(model_client),
+    )
+
+    await MiddleDeciderAgent.register(
+        runtime=runtime,
+        type="middle_decider_agent_type",
+        factory=lambda: MiddleDeciderAgent(
+            model_client=model_client,
+            description="Analyse the data and write a summary for the user - what to do to improve the results",  # TODO: is it used somewhere?
+            system_message_summarizer="Analyse the data and write a summary for the user",
+            tools=[add_numbers, multiply_numbers],
+        ),
+    )
+    await AnalysisAgent.register(
+        runtime=runtime, type="analysis_agent_type", factory=lambda: AnalysisAgent(model_client)
+    )
+    await FinalPipelineAgent.register(runtime=runtime, type="final_pipeline_agent_type", factory=FinalPipelineAgent)
+
+    await DataPipelineAgent.register(
+        runtime,
+        "data_pipeline_agent",
+        lambda: DataPipelineAgent(),
+    )
+
+    # coordinator_agent_id = await runtime.get("coordinator_agent_type", key="default")
+    # user_input_text = "Process the data using Pipeline A in wool socks and then finalize the results"
+    # user_input = UserInput(text=user_input_text)
+    #
+    # final_result = await runtime.send_message(message=user_input, recipient=coordinator_agent_id)
+    #
+    # logger.debug("Final Analysis Report:")
+    # logger.debug(final_result.result)
+    #
+    # await runtime.stop()
 
     # Configure loguru
     logger.remove()  # Remove default handler
@@ -94,26 +137,29 @@ async def main():
         level="DEBUG",
     )
 
-    model_client = OpenAIChatCompletionClientWrapper(
-        model="gpt-4o-mini",
-        api_key=settings.openai_api_key,
-    )
     # model_client = OpenAIChatCompletionClient(model="gpt-4o")
 
     # Define some tools, for example:
-    async def tool_example() -> str:
-        """A simple example tool."""
-        return "Example tool result"
+    # async def tool_example() -> str:
+    #     """A simple example tool."""
+    #     return "Example tool result"
 
     # Using AssistantAgent (Option 1)
-    agent = AssistantAgent(name="assistant", model_client=model_client, tools=[tool_example])
+    # agent = AssistantAgent(name="assistant", model_client=model_client, tools=[tool_example])
+    # agent = CoordinatorAgent(model_client=model_client)
 
-    # Define your task and execute
-    cancellation_token = CancellationToken()
-    response = await agent.on_messages(
-        [(TextMessage(content="Perform a task using tools.", source="user"))], cancellation_token
-    )
-    logger.debug(response.chat_message)
+    # agent = CoordinatorAgent(model_client)
+    #
+    # coordinator_agent_id = await runtime.get("coordinator_agent_type", key="default")
+    # user_input_text = "Process the data using Pipeline A in wool socks and then finalize the results"
+    # user_input = UserInput(text=user_input_text)
+
+    # # Define your task and execute
+    # cancellation_token = CancellationToken()
+    # response = await agent..send_message(
+    #     [(TextMessage(content="Perform a task using tools.", source="user"))], cancellation_token
+    # )
+    # logger.debug(response.chat_message)
 
     # Initialize the database with sample data
     # await init_db()
@@ -143,7 +189,12 @@ async def main():
     #     ),
     # )
 
-    agent._runtime = runtime
+    agent: CoordinatorAgent = await runtime.try_get_underlying_agent_instance(
+        id="coordinator_agent_type", type=CoordinatorAgent
+    )
+    assert isinstance(agent, CoordinatorAgent)
+
+    # agent._runtime = runtime
     tasks = [
         {
             "task": "Investigate why Black Hat is becoming more popular in our shop.",
@@ -160,10 +211,19 @@ async def main():
             ],
         },
     ]
+    cancellation_token = CancellationToken()
 
     model_client.set_throw_on_create(True)
 
-    saved_state = await agent.save_state()
+    # saved_state = await agent.save_state()
+
+    # coordinator_agent_id = await runtime.get("coordinator_agent_type", key="default")
+    # user_input_text = input("Enter your request: ")
+    # user_input_text = "Process the data using Pipeline A win wool socks and then finalize the results drinking apple juice"
+    user_input_text = "Process the data using Pipeline A in wool socks and then finalize the results"
+    user_input = UserInput(text=user_input_text)
+
+    runtime.start()
 
     # Run the tasks sequentially
     for task_entry in tasks:
@@ -172,9 +232,32 @@ async def main():
 
         logger.debug(f"--- Starting task: {task_text} ---\n")
 
+        # MessageContext:
+        #     sender: AgentId | None
+        #     topic_id: TopicId | None
+        #     is_rpc: bool
+        #     cancellation_token: CancellationToken
+        #     message_id: str
+
         try:
             # Run the team and capture the output
-            await Console(agent.run_stream(task=task_text))
+            # await Console(agent.run_stream(task=task_text))
+
+            result = await agent.handle_user_input(
+                message=user_input,
+                ctx=MessageContext(
+                    sender=None,
+                    topic_id=None,
+                    is_rpc=False,
+                    cancellation_token=cancellation_token,
+                    message_id="",
+                ),
+            )
+
+            # final_result = await runtime.send_message(message=user_input, recipient=coordinator_agent_id)
+            i = 100
+
+            # final_result = await runtime.send_message(message=user_input, recipient=coordinator_agent_id)
 
             # TODO: to improve case when the result is also compared
             # # After running, check the verification results
@@ -189,50 +272,8 @@ async def main():
 
         logger.debug(f"\n--- Completed task: {task_text} ---\n")
         # await team.reset()  # Reset the team state before each task
-        await agent.load_state(saved_state)
-
-    # tracer_provider = configure_tracing(langfuse_client=langfuse)
-    # runtime = SingleThreadedAgentRuntime(tracer_provider=tracer_provider)
-    #
-    # await CoordinatorAgent.register(
-    #     runtime=runtime,
-    #     type="coordinator_agent_type",
-    #     factory=lambda: CoordinatorAgent(model_client),
-    # )
-    #
-    # await MiddleDeciderAgent.register(
-    #     runtime=runtime,
-    #     type="middle_decider_agent_type",
-    #     factory=lambda: MiddleDeciderAgent(
-    #         model_client=model_client,
-    #         description="Analyse the data and write a summary for the user - what to do to improve the results",  # TODO: is it used somewhere?
-    #         system_message_summarizer="Analyse the data and write a summary for the user",
-    #         tools=[add_numbers, multiply_numbers],
-    #     ),
-    # )
-    # await AnalysisAgent.register(
-    #     runtime=runtime, type="analysis_agent_type", factory=lambda: AnalysisAgent(model_client)
-    # )
-    # await FinalPipelineAgent.register(runtime=runtime, type="final_pipeline_agent_type", factory=FinalPipelineAgent)
-    #
-    # await DataPipelineAgent.register(
-    #     runtime,
-    #     "data_pipeline_agent",
-    #     lambda: DataPipelineAgent(),
-    # )
-    #
-    # runtime.start()
-    #
-    # coordinator_agent_id = await runtime.get("coordinator_agent_type", key="default")
-    # user_input_text = "Process the data using Pipeline A in wool socks and then finalize the results"
-    # user_input = UserInput(text=user_input_text)
-    #
-    # final_result = await runtime.send_message(message=user_input, recipient=coordinator_agent_id)
-    #
-    # logger.debug("Final Analysis Report:")
-    # logger.debug(final_result.result)
-    #
-    # await runtime.stop()
+        # await agent.load_state(saved_state)
+    i = 100
 
 
 if __name__ == "__main__":
