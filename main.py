@@ -46,6 +46,12 @@ from utils.tracing import configure_tracing
 # from workers.worker_agent import worker_runtime_client
 
 
+class Filters(BaseModel):
+    reason: str
+    filters: Dict[str, List[str]] | None
+    successful: bool
+
+
 async def main():
     langfuse = Langfuse(
         secret_key=settings.langfuse_secret_key,
@@ -64,11 +70,6 @@ async def main():
     )
 
     runtime.start()
-
-    class Filters(BaseModel):
-        reason: str
-        filters: Dict[str, List[str]] | None
-        successful: bool
 
     # , cancellation_token: CancellationToken
     def decide_filters(filters_mapped: Annotated[Filters, "Mapped filters from user's query"]) -> Filters:

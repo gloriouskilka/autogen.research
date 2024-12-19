@@ -27,6 +27,7 @@ from autogen_core.models import (
 )
 from autogen_core.tools import Tool, FunctionTool
 from loguru import logger
+from pydantic import BaseModel
 
 
 class ResponseFormatAssistantAgent(AssistantAgent):
@@ -198,7 +199,7 @@ class ResponseFormatAssistantAgent(AssistantAgent):
         name: str,
         model_client: ChatCompletionClient,
         *,
-        response_format: Any = None,
+        response_format: BaseModel = None,
         tools: List[Tool | Callable[..., Any] | Callable[..., Awaitable[Any]]] | None = None,
         handoffs: List[HandoffBase | str] | None = None,
         description: str = "An agent that provides assistance with ability to use tools.",
@@ -221,6 +222,8 @@ class ResponseFormatAssistantAgent(AssistantAgent):
         )
         self._response_format_reflect_on_tool_use = response_format_reflect_on_tool_use
         self._response_format = response_format
+        assert response_format is None or isinstance(response_format, BaseModel)
+
         # self._model_client = model_client
         # if system_message is None:
         #     self._system_messages = []
