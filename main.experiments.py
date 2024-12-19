@@ -2,11 +2,14 @@ import asyncio
 import json
 import sys
 
+from autogen_agentchat.agents import UserProxyAgent, AssistantAgent
+from autogen_agentchat.messages import TextMessage
 from autogen_agentchat.ui import Console
 
 # from config import OPENAI_API_KEY, MODEL_NAME, DATABASE_PATH
-from autogen_core import SingleThreadedAgentRuntime
-from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_core import SingleThreadedAgentRuntime, CancellationToken
+
+# from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_ext.runtimes.grpc import GrpcWorkerAgentRuntime, GrpcWorkerAgentRuntimeHost
 from langfuse import Langfuse
 from loguru import logger
@@ -91,13 +94,29 @@ async def main():
         level="DEBUG",
     )
 
-    # Initialize the database with sample data
-    # await init_db()
-
     model_client = OpenAIChatCompletionClientWrapper(
         model="gpt-4o-mini",
         api_key=settings.openai_api_key,
     )
+    # model_client = OpenAIChatCompletionClient(model="gpt-4o")
+
+    # Define some tools, for example:
+    async def tool_example() -> str:
+        """A simple example tool."""
+        return "Example tool result"
+
+    # Using AssistantAgent (Option 1)
+    agent = AssistantAgent(name="assistant", model_client=model_client, tools=[tool_example])
+
+    # Define your task and execute
+    cancellation_token = CancellationToken()
+    response = await agent.on_messages(
+        [(TextMessage(content="Perform a task using tools.", source="user"))], cancellation_token
+    )
+    logger.debug(response.chat_message)
+
+    # Initialize the database with sample data
+    # await init_db()
 
     # ---------------------------
     # Team Setup (Swarm)
@@ -113,21 +132,18 @@ async def main():
     #     termination_condition=termination_condition,
     # )
 
-    await MiddleDeciderAgent.register(
-        runtime=runtime,
-        type="middle_decider_agent_type",
-        factory=lambda: MiddleDeciderAgent(
-            model_client=model_client,
-            description="Analyse the data and write a summary for the user - what to do to improve the results",  # TODO: is it used somewhere?
-            system_message_summarizer="Analyse the data and write a summary for the user",
-            tools=[add_numbers, multiply_numbers],
-        ),
-    )
+    # await MiddleDeciderAgent.register(
+    #     runtime=runtime,
+    #     type="middle_decider_agent_type",
+    #     factory=lambda: MiddleDeciderAgent(
+    #         model_client=model_client,
+    #         description="Analyse the data and write a summary for the user - what to do to improve the results",  # TODO: is it used somewhere?
+    #         system_message_summarizer="Analyse the data and write a summary for the user",
+    #         tools=[add_numbers, multiply_numbers],
+    #     ),
+    # )
 
-    team = sql_query_agent
-
-    team._runtime = runtime
-
+    agent._runtime = runtime
     tasks = [
         {
             "task": "Investigate why Black Hat is becoming more popular in our shop.",
@@ -147,7 +163,7 @@ async def main():
 
     model_client.set_throw_on_create(True)
 
-    saved_state = await team.save_state()
+    saved_state = await agent.save_state()
 
     # Run the tasks sequentially
     for task_entry in tasks:
@@ -158,21 +174,22 @@ async def main():
 
         try:
             # Run the team and capture the output
-            await Console(team.run_stream(task=task_text))
+            await Console(agent.run_stream(task=task_text))
 
-            # After running, check the verification results
-            for verification in model_client.create_results:
-                await handle_verification(verification)
-
-            # Clear the create_results after handling
-            model_client.create_results.clear()
+            # TODO: to improve case when the result is also compared
+            # # After running, check the verification results
+            # for verification in model_client.create_results:
+            #     await handle_verification(verification)
+            #
+            # # Clear the create_results after handling
+            # model_client.create_results.clear()
 
         except OpenAIChatCompletionClientWrapper.Verification as verification:
             await handle_verification(verification, expected_function_calls)
 
         logger.debug(f"\n--- Completed task: {task_text} ---\n")
         # await team.reset()  # Reset the team state before each task
-        await team.load_state(saved_state)
+        await agent.load_state(saved_state)
 
     # tracer_provider = configure_tracing(langfuse_client=langfuse)
     # runtime = SingleThreadedAgentRuntime(tracer_provider=tracer_provider)
