@@ -9,11 +9,13 @@ from autogen_agentchat.messages import ToolCallMessage
 from autogen_core import SingleThreadedAgentRuntime
 from autogen_core.models import ModelCapabilities, SystemMessage, UserMessage
 from autogen_core.tools import FunctionTool
-from autogen_ext.models.openai import OpenAIChatCompletionClient
+
+# from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_ext.runtimes.grpc import GrpcWorkerAgentRuntime, GrpcWorkerAgentRuntimeHost
 from deepdiff import DeepDiff
 from langfuse import Langfuse
 from loguru import logger
+from openai.types import FunctionDefinition, FunctionParameters
 from pydantic import BaseModel
 
 from agents.ResponseFormatAssistantAgent import ResponseFormatAssistantAgent
@@ -25,6 +27,8 @@ from agents.analysis_agent import AnalysisAgent
 
 from agents.final_pipeline_agent import FinalPipelineAgent
 from autogen_core.tool_agent import ToolAgent
+
+from models.openai_client import MyOpenAIChatCompletionClient
 from tools.function_tools import (
     # pipeline_a_tool,
     # pipeline_b_tool,
@@ -53,10 +57,10 @@ async def main():
 
     tracer_provider = configure_tracing(langfuse_client=langfuse)
     runtime = SingleThreadedAgentRuntime(tracer_provider=tracer_provider)
-    model_client = OpenAIChatCompletionClient(
+    model_client = MyOpenAIChatCompletionClient(
         model=settings.model,
         api_key=settings.openai_api_key,
-        create_args={"response_format": "json"},
+        # create_args={"response_format": "json"},
     )
 
     runtime.start()
@@ -66,6 +70,7 @@ async def main():
         filters: Dict[str, List[str]] | None
         successful: bool
 
+    # , cancellation_token: CancellationToken
     def decide_filters(filters_mapped: Annotated[Filters, "Mapped filters from user's query"]) -> Filters:
         return Filters(**filters_mapped.model_dump())
 
@@ -161,9 +166,12 @@ async def main():
             model_client=model_client,
             response_format=Filters,
             system_message=system_message,
-            tools=[decide_filters],
+            tools=[FunctionTool(decide_filters, description="DAVAI")],
         )
+
+        # result = await agent.run(task=task)
         result = await agent.run(task=task)
+
         logger.debug(result)
 
         i = 100

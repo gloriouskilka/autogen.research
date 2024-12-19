@@ -226,21 +226,21 @@ class ResponseFormatAssistantAgent(AssistantAgent):
         #     self._system_messages = []
         # else:
         #     self._system_messages = [SystemMessage(content=system_message)]
-        # self._tools: List[Tool] = []
-        # if tools is not None:
-        #     if model_client.capabilities["function_calling"] is False:
-        #         raise ValueError("The model does not support function calling.")
-        #     for tool in tools:
-        #         if isinstance(tool, Tool):
-        #             self._tools.append(tool)
-        #         elif callable(tool):
-        #             if hasattr(tool, "__doc__") and tool.__doc__ is not None:
-        #                 description = tool.__doc__
-        #             else:
-        #                 description = ""
-        #             self._tools.append(FunctionTool(tool, description=description))
-        #         else:
-        #             raise ValueError(f"Unsupported tool type: {type(tool)}")
+        self._tools: List[Tool] = []
+        if tools is not None:
+            if model_client.capabilities["function_calling"] is False:
+                raise ValueError("The model does not support function calling.")
+            for tool in tools:
+                if isinstance(tool, Tool):
+                    self._tools.append(tool)
+                elif callable(tool):
+                    if hasattr(tool, "__doc__") and tool.__doc__ is not None:
+                        description = tool.__doc__
+                    else:
+                        description = ""
+                    self._tools.append(FunctionTool(tool, description=description))
+                else:
+                    raise ValueError(f"Unsupported tool type: {type(tool)}")
         # # Check if tool names are unique.
         # tool_names = [tool.name for tool in self._tools]
         # if len(tool_names) != len(set(tool_names)):
