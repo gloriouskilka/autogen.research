@@ -24,5 +24,5 @@ def analyze_full_data(dataframe_dict: Dict) -> OverviewInfo:
     # Convert dict back to DataFrame
     df = pd.DataFrame.from_dict(dataframe_dict)
     # Deterministic final analysis logic
-    overview_info = {"mean_values": df.mean().to_dict(), "total_entries": len(df)}
+    overview_info = {"mean_values": df.mean().to_dict(), "total_entries": len(df), "comment": "Looks good!"}
     return OverviewInfo(overview=overview_info)
