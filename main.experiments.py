@@ -189,9 +189,8 @@ async def main():
     #     ),
     # )
 
-    agent: CoordinatorAgent = await runtime.try_get_underlying_agent_instance(
-        id="coordinator_agent_type", type=CoordinatorAgent
-    )
+    agent_id = await runtime.get("coordinator_agent_type", key="default")
+    agent: CoordinatorAgent = await runtime.try_get_underlying_agent_instance(id=agent_id, type=CoordinatorAgent)
     assert isinstance(agent, CoordinatorAgent)
 
     # agent._runtime = runtime
