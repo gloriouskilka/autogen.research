@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Any, Annotated, Optional
 
 from autogen_agentchat.agents import AssistantAgent
+from autogen_agentchat.base import TaskResult
 from autogen_agentchat.messages import ToolCallMessage
 
 # from config import OPENAI_API_KEY, MODEL_NAME, DATABASE_PATH
@@ -90,83 +91,44 @@ async def main():
     func_schema = get_function_schema(decide_filters, description=decide_filters.__doc__)
     i = 100
 
+    # task_to_result = {
+    #     "why is my gi21 is so bad?": {"reason": Any, "filters": {"system": ["GI21"]}, "successful": True},
+    #     "what is happening with B35?": {"reason": Any, "filters": {"system": ["B35"]}, "successful": True},
+    #     "what is happening with B35 and B36?": {
+    #         "reason": Any,
+    #         "filters": {"system": ["B35", "B36"]},
+    #         "successful": True,
+    #     },
+    #     "what is happening with B35 and B36 and B37?": {
+    #         "reason": Any,
+    #         "filters": {"system": ["B35", "B36", "B37"]},
+    #         "successful": True,
+    #     },
+    #     "halo, barsudjgfsuyfgbsgf": {"reason": Any, "filters": None, "successful": False},
+    #     "CFN*GF &U#FVFS": {"reason": Any, "filters": None, "successful": False},
+    #     "": {"reason": Any, "filters": None, "successful": False},
+    #     "Oppa! Hele, p392756 is on the fly OR WHAT!": {
+    #         "reason": Any,
+    #         "filters": {"system": ["p392756"]},
+    #         "successful": True,
+    #     },
+    # }
+
+    # The format was changed, this is correct one: {'filters': [{'key': 'GI21_issues', 'values': ['performance', 'feedback', 'training', 'environment', 'stress', 'objectives']}], 'successful': True}
     task_to_result = {
-        "why is my gi21 is so bad?": {"reason": Any, "filters": {"system": ["GI21"]}, "successful": True},
-        "what is happening with B35?": {"reason": Any, "filters": {"system": ["B35"]}, "successful": True},
-        "what is happening with B35 and B36?": {
+        "why is my gi21 is so bad?": {
             "reason": Any,
-            "filters": {"system": ["B35", "B36"]},
-            "successful": True,
-        },
-        "what is happening with B35 and B36 and B37?": {
-            "reason": Any,
-            "filters": {"system": ["B35", "B36", "B37"]},
-            "successful": True,
-        },
-        "halo, barsudjgfsuyfgbsgf": {"reason": Any, "filters": None, "successful": False},
-        "CFN*GF &U#FVFS": {"reason": Any, "filters": None, "successful": False},
-        "": {"reason": Any, "filters": None, "successful": False},
-        "Oppa! Hele, p392756 is on the fly OR WHAT!": {
-            "reason": Any,
-            "filters": {"system": ["p392756"]},
+            "filters": [
+                {
+                    "key": "GI21_issues",
+                    "values": ["performance", "feedback", "training", "environment", "stress", "objectives"],
+                }
+            ],
             "successful": True,
         },
     }
 
     for task, result_expected in task_to_result.items():
-        # # +Structured
-        # response = await model_client.create(
-        #     messages=mapping_agent._system_messages + [UserMessage(content=task, source="user")],
-        #     # tools=[
-        #     #     FunctionTool(
-        #     #         decide_filters,
-        #     #         description=(
-        #     #             decide_filters.__doc__
-        #     #             if hasattr(decide_filters, "__doc__") and decide_filters.__doc__ is not None
-        #     #             else ""
-        #     #         ),
-        #     #     )
-        #     # ],
-        #     extra_create_args={"response_format": Filters},
-        # )
-        #
-        # # Ensure the response content is a valid JSON string before loading it
-        # response_content: Optional[str] = response.content if isinstance(response.content, str) else None
-        # if response_content is None:
-        #     raise ValueError("Response content is not a valid JSON string")
-        #
-        # # Print the response content after loading it as JSON
-        # logger.debug(json.loads(response_content))
-        #
-        # # Validate the response content with the MathReasoning model
-        # filters_parsed = Filters.model_validate(json.loads(response_content))
-        # # -Structured
-        #
-        # # result = await mapping_agent.run(task=task)
-        # # tool_call_message = next(x for x in result.messages if isinstance(x, ToolCallMessage))
-        # # arguments = json.loads(tool_call_message.content[0].arguments)
-        #
-        # # Identify fields set to Any in the expected result
-        # any_fields = [k for k, v in result_expected.items() if v is Any]
-        #
-        # arguments = filters_parsed.model_dump()
-        #
-        # # Log the values of the fields that are not checked
-        # for field in any_fields:
-        #     actual_value = arguments.get(field)
-        #     logger.info(f"Field '{field}' is not checked, but its value is: {actual_value}")
-        #
-        #     # Remove the field from both dictionaries before comparison
-        #     result_expected.pop(field, None)
-        #     arguments.pop(field, None)
-        #
-        # # Now compare the remaining fields using DeepDiff
-        # diff = DeepDiff(result_expected, arguments)
-        # if diff:
-        #     logger.error(f"Task: {task}, Differences: {diff}")
-        # else:
-        #     logger.info(f"Task: {task}, No differences found.")
-
         agent = ResponseFormatAssistantAgent(
             name="ResponseFormatAssistantAgent",
             model_client=model_client,
@@ -178,7 +140,44 @@ async def main():
         )
 
         # result = await agent.run(task=task)
-        result = await agent.run(task=task)
+        result: TaskResult = await agent.run(task=task)
+        response_content = result.messages[-1].content
+        # Ensure the response content is a valid JSON string before loading it
+        # response_content: Optional[str] = response.content if isinstance(response.content, str) else None
+        if response_content is None:
+            raise ValueError("Response content is not a valid JSON string")
+
+        # Print the response content after loading it as JSON
+        logger.debug(json.loads(response_content))
+
+        # Validate the response content with the MathReasoning model
+        filters_parsed = Filters.model_validate(json.loads(response_content))
+        # -Structured
+
+        # result = await mapping_agent.run(task=task)
+        # tool_call_message = next(x for x in result.messages if isinstance(x, ToolCallMessage))
+        # arguments = json.loads(tool_call_message.content[0].arguments)
+
+        # Identify fields set to Any in the expected result
+        any_fields = [k for k, v in result_expected.items() if v is Any]
+
+        arguments = filters_parsed.model_dump()
+
+        # Log the values of the fields that are not checked
+        for field in any_fields:
+            actual_value = arguments.get(field)
+            logger.info(f"Field '{field}' is not checked, but its value is: {actual_value}")
+
+            # Remove the field from both dictionaries before comparison
+            result_expected.pop(field, None)
+            arguments.pop(field, None)
+
+        # Now compare the remaining fields using DeepDiff
+        diff = DeepDiff(result_expected, arguments)
+        if diff:
+            logger.error(f"Task: {task}, Differences: {diff}")
+        else:
+            logger.info(f"Task: {task}, No differences found.")
 
         logger.debug(result)
         i = 100
