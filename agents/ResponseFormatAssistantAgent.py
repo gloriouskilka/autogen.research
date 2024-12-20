@@ -305,11 +305,14 @@ class ResponseFormatAssistantAgent(AssistantAgent):
         # Generate an inference result based on the current model context.
         llm_messages = self._system_messages + self._model_context
 
+        # Reference: https://openai.com/index/introducing-structured-outputs-in-the-api/
+        # Structured Outputs is not compatible with parallel function calls. When a parallel function call is generated, it may not match supplied schemas. Set parallel_tool_calls: false to disable parallel function calling.
         result = await self._model_client.create(
             llm_messages,
             tools=self._tools + self._handoff_tools,
             cancellation_token=cancellation_token,
-            extra_create_args={"response_format": self._response_format},
+            extra_create_args={"response_format": self._response_format, "parallel_tool_calls": False},
+            json_output=True,
         )
 
         # Add the response to the model context.
@@ -361,10 +364,14 @@ class ResponseFormatAssistantAgent(AssistantAgent):
         if self._reflect_on_tool_use:
             # Generate another inference result based on the tool call and result.
             llm_messages = self._system_messages + self._model_context
+            # No tools passed here, but not to forget that Structured Outputs is not compatible with parallel function calls.
             result = await self._model_client.create(
                 llm_messages,
                 cancellation_token=cancellation_token,
-                extra_create_args={"response_format": self._response_format_reflect_on_tool_use},
+                extra_create_args={
+                    "response_format": self._response_format_reflect_on_tool_use,
+                    "parallel_tool_calls": False,
+                },
             )
             assert isinstance(result.content, str)
             # Add the response to the model context.

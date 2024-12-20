@@ -61,3 +61,13 @@ class Filters(BaseModel):
     reason: str
     filters: List[FilterItem]
     successful: bool
+
+
+class FiltersReflect(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str
+    filters: List[FilterItem]
+    successful: bool
+    reflection_thoughts: List[str]
+    joke_about_filters: str

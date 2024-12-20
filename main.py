@@ -10,6 +10,7 @@ from autogen_agentchat.messages import ToolCallMessage
 from autogen_core import SingleThreadedAgentRuntime
 from autogen_core.models import ModelCapabilities, SystemMessage, UserMessage
 from autogen_core.tools import FunctionTool
+from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 # from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_ext.runtimes.grpc import GrpcWorkerAgentRuntime, GrpcWorkerAgentRuntimeHost
@@ -39,7 +40,7 @@ from tools.function_tools import (
     multiply_numbers,
     # query_tool,
 )
-from agents.common import UserInput, Filters, FilterItem
+from agents.common import UserInput, Filters, FilterItem, FiltersReflect
 
 from utils.settings import settings
 from utils.tracing import configure_tracing
@@ -58,77 +59,36 @@ async def main():
 
     tracer_provider = configure_tracing(langfuse_client=langfuse)
     runtime = SingleThreadedAgentRuntime(tracer_provider=tracer_provider)
-    model_client = MyOpenAIChatCompletionClient(
+    # model_client = OpenAIChatCompletionClient(  # ERROR: ValueError: `decide_filters` is not strict. Only `strict` function tools can be auto-parsed
+    #     model=settings.model,
+    #     api_key=settings.openai_api_key,
+    # )
+
+    model_client = MyOpenAIChatCompletionClient(  # This has a fix
         model=settings.model,
         api_key=settings.openai_api_key,
-        # create_args={"response_format": "json"},
     )
 
     runtime.start()
 
-    # def f(
-    #     a: Annotated[str, "Parameter a"],
-    #     b: int = 2,
-    #     c: Annotated[float, "Parameter c"] = 0.1,
-    # ) -> None:
-    #     pass
-    #
-    #
-    # get_function_schema(f, description="function f")
-    #
-    # #   {'type': 'function',
-    # #    'function': {'description': 'function f',
-    # #        'name': 'f',
-    # #        'parameters': {'type': 'object',
-    # #           'properties': {'a': {'type': 'str', 'description': 'Parameter a'},
-    # #               'b': {'type': 'int', 'description': 'b'},
-    # #               'c': {'type': 'float', 'description': 'Parameter c'}},
-    # #           'required': ['a']}}}
-
-    # In order to ensure strict schema adherence, disable parallel function calls by supplying parallel_tool_calls: false. With this setting, the model will generate one function call at a time.
-
-    # Reference: https://platform.openai.com/docs/guides/structured-outputs#supported-schemas
-    # The following types are supported for Structured Outputs: String, Number, Boolean, Integer, Object, Array, Enum, anyOf
-
-    # # @dataclass
-    # class Checking(BaseModel):
-    #     model_config = ConfigDict(extra="forbid")
-    #     list: List[FilterItem]
-    #
-    # # @dataclass
-    # class CheckingStr(BaseModel):
-    #     model_config = ConfigDict(extra="forbid")
-    #     some_str: Annotated[str, "User's filters"]
-
     # , cancellation_token: CancellationToken
     def decide_filters(
-        # reason: Annotated[str, "Reason why such mapping was made"],
-        # filters: Annotated[str, "User's filters"],  # THIS WORKS
-        # successful: Annotated[bool, "Was the mapping successful and valid"],
         filters: Annotated[Filters, "Mapped filters"],
     ) -> Filters:
         """
         Decide filters based on the user's input. In case of failure, successful must be False, arbitrary filters can be returned.
         Examples: "what is happening with B35 and B36 and B37?" -> {"system": ["B35", "B36", "B37"]}
         """
-        # return Filters(reason=reason, filters=filters, successful=successful)
-        return Filters(**filters.model_dump())
-        # return "DA"
+
+        filters_dict = filters.model_dump() if isinstance(filters, Filters) else filters
+        assert isinstance(filters_dict, dict)
+
+        return Filters(**filters_dict)
 
     from autogen_core._function_utils import get_function_schema
 
     func_schema = get_function_schema(decide_filters, description=decide_filters.__doc__)
     i = 100
-
-    system_message = (
-        "Please map natural language input to filters. Example: what is happening with B35? Answer: 'system': ['B35']"
-    )
-    # mapping_agent = AssistantAgent(
-    #     name="pipeline_selector",
-    #     model_client=model_client,
-    #     system_message=system_message,
-    #     tools=[decide_filters],
-    # )
 
     task_to_result = {
         "why is my gi21 is so bad?": {"reason": Any, "filters": {"system": ["GI21"]}, "successful": True},
@@ -211,16 +171,18 @@ async def main():
             name="ResponseFormatAssistantAgent",
             model_client=model_client,
             response_format=Filters,
-            system_message=system_message,
+            system_message="Please map natural language input to filters and write your thoughts about mappings.",
             tools=[FunctionTool(decide_filters, description="DAVAI")],
+            # reflect_on_tool_use=True,
+            # response_format_reflect_on_tool_use=FiltersReflect,
         )
 
         # result = await agent.run(task=task)
         result = await agent.run(task=task)
 
         logger.debug(result)
-
         i = 100
+        break
 
     i = 100
 
