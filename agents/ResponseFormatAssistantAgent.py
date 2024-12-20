@@ -364,7 +364,7 @@ class ResponseFormatAssistantAgent(AssistantAgent):
             result = await self._model_client.create(
                 llm_messages,
                 cancellation_token=cancellation_token,
-                extra_create_args={"response_format": self._response_format},
+                extra_create_args={"response_format": self._response_format_reflect_on_tool_use},
             )
             assert isinstance(result.content, str)
             # Add the response to the model context.
