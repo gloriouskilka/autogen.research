@@ -109,6 +109,7 @@ async def main():
     ) -> Filters:
         """
         Decide filters based on the user's input. In case of failure, successful must be False, arbitrary filters can be returned.
+        Examples: "what is happening with B35 and B36 and B37?" -> {"system": ["B35", "B36", "B37"]}
         """
         # return Filters(reason=reason, filters=filters, successful=successful)
         return Filters(**filters.model_dump())
