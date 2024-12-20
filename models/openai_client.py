@@ -1,8 +1,9 @@
 import asyncio
 import warnings
 from asyncio import Task
-from typing import Optional, Dict, Any, Sequence, Mapping, Type, Union, cast, List
+from typing import Optional, Dict, Any, Sequence, Mapping, Type, Union, cast, List, overload, TypeVar
 
+import httpx
 from autogen_core import CancellationToken, Image, FunctionCall
 from autogen_core.logging import LLMCallEvent
 from autogen_core.models import (
@@ -27,10 +28,19 @@ from autogen_ext.models.openai._openai_client import (
 )
 from click import Choice
 from loguru import logger
+from openai import AsyncStream, APIConnectionError, APITimeoutError
+from openai._base_client import get_platform
+from openai._compat import model_copy
+from openai._models import FinalRequestOptions
+from openai._types import ResponseT, HttpxSendArgs
+from openai._utils import asyncify
 from openai.types import FunctionDefinition, FunctionParameters
 from openai.types.chat import ParsedChatCompletion, ChatCompletion, ParsedChoice, ChatCompletionToolParam
 from pydantic import BaseModel
 from typing_extensions import Unpack
+
+
+_AsyncStreamT = TypeVar("_AsyncStreamT", bound=AsyncStream[Any])
 
 
 # Reference: https://platform.openai.com/docs/guides/function-calling
@@ -57,35 +67,119 @@ from typing_extensions import Unpack
 def convert_tools(
     tools: Sequence[Tool | ToolSchema],
 ) -> List[ChatCompletionToolParam]:
-    result: List[ChatCompletionToolParam] = []
-    for tool in tools:
-        if isinstance(tool, Tool):
-            tool_schema = tool.schema
-        else:
-            assert isinstance(tool, dict)
-            tool_schema = tool
+    # result: List[ChatCompletionToolParam] = []
+    # for tool in tools:
+    #     if isinstance(tool, Tool):
+    #         tool_schema = tool.schema
+    #     else:
+    #         assert isinstance(tool, dict)
+    #         tool_schema = tool
+    #
+    #     param_dict: dict = ChatCompletionToolParam(
+    #         type="function",
+    #         function=FunctionDefinition(
+    #             name=tool_schema["name"],
+    #             description=tool_schema.get("description", ""),
+    #             parameters=cast(FunctionParameters, tool_schema.get("parameters", {})),
+    #             strict=True,
+    #         ).model_dump(),
+    #     )
+    #     parameters_dict = param_dict["function"]["parameters"]
+    #     parameters_dict["additionalProperties"] = False
+    #
+    #     # Recursively set "additionalProperties": False
+    #     # def set_additional_properties_false(schema):
+    #     #     if isinstance(schema, dict):
+    #     #         if "properties" in schema:
+    #     #             schema["additionalProperties"] = False
+    #     #             for prop in schema["properties"].values():
+    #     #                 set_additional_properties_false(prop)
+    #     #         elif "items" in schema:
+    #     #             set_additional_properties_false(schema["items"])
+    #     #         elif "anyOf" in schema or "oneOf" in schema or "allOf" in schema:
+    #     #             for subschema in schema.get("anyOf", []) + schema.get("oneOf", []) + schema.get("allOf", []):
+    #     #                 set_additional_properties_false(subschema)
+    #
+    #     # set_additional_properties_false(parameters_dict)
+    #
+    #     result.append(param_dict)
+    #     assert_valid_name(param_dict["function"]["name"])
 
-        param_dict: dict = ChatCompletionToolParam(
-            type="function",
-            function=FunctionDefinition(
-                name=tool_schema["name"],
-                description=(tool_schema["description"] if "description" in tool_schema else ""),
-                parameters=(cast(FunctionParameters, tool_schema["parameters"]) if "parameters" in tool_schema else {}),
-                strict=True,  # Code change: added strict to the function definition
-            ).model_dump(),
-        )
-        parameters_dict = param_dict["function"]["parameters"]
-        parameters_dict["additionalProperties"] = False
+    # result = [
+    #     {
+    #         "function": {
+    #             "description": "DAVAI",
+    #             "name": "decide_filters",
+    #             "parameters": {
+    #                 "additionalProperties": False,
+    #                 "properties": {
+    #                     "filters_mapped": {
+    #                         "properties": {
+    #                             "filters": {
+    #                                 "anyOf": [
+    #                                     {
+    #                                         "additionalProperties": {"items": {"type": "string"}, "type": "array"},
+    #                                         "type": "object",
+    #                                     },
+    #                                     {"type": "null"},
+    #                                 ],
+    #                                 "title": "Filters",
+    #                             },
+    #                             "reason": {"title": "Reason", "type": "string"},
+    #                             "successful": {"title": "Successful", "type": "boolean"},
+    #                         },
+    #                         "required": ["reason", "filters", "successful"],
+    #                         "title": "Filters",
+    #                         "type": "object",
+    #                     }
+    #                 },
+    #                 "required": ["filters_mapped"],
+    #                 "type": "object",
+    #             },
+    #             "strict": True,
+    #         },
+    #         "type": "function",
+    #     }
+    # ]
 
-        result.append(param_dict)
-    # convert to list of dicts
-    # result = [dict(x) for x in result]
+    result = [
+        {
+            "function": {
+                "description": "DAVAI",
+                "name": "decide_filters",
+                "parameters": {
+                    "additionalProperties": False,
+                    "properties": {
+                        "filters_mapped": {
+                            "properties": {
+                                "filters": {
+                                    "anyOf": [
+                                        {
+                                            "additionalProperties": False,  # TODO: Modified manually, but also removed | None from Filters
+                                            "type": "object",
+                                        },
+                                        {"type": "null"},
+                                    ],
+                                    "title": "Filters",
+                                },
+                                "reason": {"title": "Reason", "type": "string"},
+                                "successful": {"title": "Successful", "type": "boolean"},
+                            },
+                            "required": ["reason", "filters", "successful"],
+                            "title": "Filters",
+                            "type": "object",
+                            "additionalProperties": False,  # TODO: ADDED MANUALLY
+                        }
+                    },
+                    "required": ["filters_mapped"],
+                    "type": "object",
+                },
+                "strict": True,
+            },
+            "type": "function",
+        }
+    ]
 
-    # Check if all tools have valid names.
-    for tool_param in result:
-        assert_valid_name(tool_param["function"]["name"])
-        # tool_param["function"]["parameters"]["additionalProperties"] = False
-        # assert_valid_name(tool_param["function"].name)
     return result
 
 
@@ -363,3 +457,141 @@ class MyOpenAIChatCompletionClient(OpenAIChatCompletionClient):
 
         # TODO - why is this cast needed?
         return response
+
+    #
+    # @overload
+    # async def request(
+    #     self,
+    #     cast_to: Type[ResponseT],
+    #     options: FinalRequestOptions,
+    #     *,
+    #     stream: bool,
+    #     stream_cls: type[_AsyncStreamT] | None = None,
+    #     remaining_retries: Optional[int] = None,
+    # ) -> ResponseT | _AsyncStreamT: ...
+    #
+    # async def request(
+    #     self,
+    #     cast_to: Type[ResponseT],
+    #     options: FinalRequestOptions,
+    #     *,
+    #     stream: bool = False,
+    #     stream_cls: type[_AsyncStreamT] | None = None,
+    #     remaining_retries: Optional[int] = None,
+    # ) -> ResponseT | _AsyncStreamT:
+    #     if remaining_retries is not None:
+    #         retries_taken = options.get_max_retries(self.max_retries) - remaining_retries
+    #     else:
+    #         retries_taken = 0
+    #
+    #     return await self._request(
+    #         cast_to=cast_to,
+    #         options=options,
+    #         stream=stream,
+    #         stream_cls=stream_cls,
+    #         retries_taken=retries_taken,
+    #     )
+    #
+    # async def _request(
+    #     self,
+    #     cast_to: Type[ResponseT],
+    #     options: FinalRequestOptions,
+    #     *,
+    #     stream: bool,
+    #     stream_cls: type[_AsyncStreamT] | None,
+    #     retries_taken: int,
+    # ) -> ResponseT | _AsyncStreamT:
+    #     if self._platform is None:
+    #         # `get_platform` can make blocking IO calls so we
+    #         # execute it earlier while we are in an async context
+    #         self._platform = await asyncify(get_platform)()
+    #
+    #     # create a copy of the options we were given so that if the
+    #     # options are mutated later & we then retry, the retries are
+    #     # given the original options
+    #     input_options = model_copy(options)
+    #
+    #     cast_to = self._maybe_override_cast_to(cast_to, options)
+    #     options = await self._prepare_options(options)
+    #
+    #     remaining_retries = options.get_max_retries(self.max_retries) - retries_taken
+    #     request = self._build_request(options, retries_taken=retries_taken)
+    #     await self._prepare_request(request)
+    #
+    #     kwargs: HttpxSendArgs = {}
+    #     if self.custom_auth is not None:
+    #         kwargs["auth"] = self.custom_auth
+    #
+    #     try:
+    #         response = await self._client.send(
+    #             request,
+    #             stream=stream or self._should_stream_response_body(request=request),
+    #             **kwargs,
+    #         )
+    #     except httpx.TimeoutException as err:
+    #         logger.debug("Encountered httpx.TimeoutException", exc_info=True)
+    #
+    #         if remaining_retries > 0:
+    #             return await self._retry_request(
+    #                 input_options,
+    #                 cast_to,
+    #                 retries_taken=retries_taken,
+    #                 stream=stream,
+    #                 stream_cls=stream_cls,
+    #                 response_headers=None,
+    #             )
+    #
+    #         logger.debug("Raising timeout error")
+    #         raise APITimeoutError(request=request) from err
+    #     except Exception as err:
+    #         logger.debug("Encountered Exception", exc_info=True)
+    #
+    #         if remaining_retries > 0:
+    #             return await self._retry_request(
+    #                 input_options,
+    #                 cast_to,
+    #                 retries_taken=retries_taken,
+    #                 stream=stream,
+    #                 stream_cls=stream_cls,
+    #                 response_headers=None,
+    #             )
+    #
+    #         logger.debug("Raising connection error")
+    #         raise APIConnectionError(request=request) from err
+    #
+    #     logger.debug(
+    #         'HTTP Request: %s %s "%i %s"', request.method, request.url, response.status_code, response.reason_phrase
+    #     )
+    #
+    #     try:
+    #         response.raise_for_status()
+    #     except httpx.HTTPStatusError as err:  # thrown on 4xx and 5xx status code
+    #         logger.debug("Encountered httpx.HTTPStatusError", exc_info=True)
+    #
+    #         if remaining_retries > 0 and self._should_retry(err.response):
+    #             await err.response.aclose()
+    #             return await self._retry_request(
+    #                 input_options,
+    #                 cast_to,
+    #                 retries_taken=retries_taken,
+    #                 response_headers=err.response.headers,
+    #                 stream=stream,
+    #                 stream_cls=stream_cls,
+    #             )
+    #
+    #         # If the response is streamed then we need to explicitly read the response
+    #         # to completion before attempting to access the response text.
+    #         if not err.response.is_closed:
+    #             await err.response.aread()
+    #
+    #         logger.debug("Re-raising status error")
+    #         raise self._make_status_error_from_response(err.response) from None
+    #
+    #     return await self._process_response(
+    #         cast_to=cast_to,
+    #         options=options,
+    #         response=response,
+    #         stream=stream,
+    #         stream_cls=stream_cls,
+    #         retries_taken=retries_taken,
+    #     )

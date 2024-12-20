@@ -30,10 +30,10 @@ from loguru import logger
 from pydantic import BaseModel
 
 
-# TODO: DEBUG:
+# TODO: DEBUG: removed | None - not allowed in Structured Output
 class Filters(BaseModel):
     reason: str
-    filters: Dict[str, List[str]] | None
+    filters: Dict[str, List[str]]
     successful: bool
 
 
