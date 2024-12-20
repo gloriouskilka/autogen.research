@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Dict, Any, List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 @dataclass
@@ -49,11 +49,15 @@ class OverviewInfo(BaseModel):
 
 
 class FilterItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     key: str
     values: List[str]
 
 
 class Filters(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     reason: str
     filters: List[FilterItem]
     successful: bool
