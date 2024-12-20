@@ -16,7 +16,7 @@ from deepdiff import DeepDiff
 from langfuse import Langfuse
 from loguru import logger
 from openai.types import FunctionDefinition, FunctionParameters
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from agents.ResponseFormatAssistantAgent import ResponseFormatAssistantAgent
 
@@ -46,10 +46,15 @@ from utils.tracing import configure_tracing
 # from workers.worker_agent import worker_runtime_client
 
 
+class FilterItem(BaseModel):
+    key: str = Field(..., description="Filter key")
+    values: List[str] = Field(..., description="List of filter values")
+
+
 class Filters(BaseModel):
-    reason: str
-    filters: Dict[str, List[str]]
-    successful: bool
+    reason: str = Field(..., description="Reason why such mapping was made")
+    filters: List[FilterItem] = Field(..., description="User's filters")
+    successful: bool = Field(..., description="Was the mapping successful and valid")
 
 
 async def main():
@@ -71,9 +76,45 @@ async def main():
 
     runtime.start()
 
+    # def f(
+    #     a: Annotated[str, "Parameter a"],
+    #     b: int = 2,
+    #     c: Annotated[float, "Parameter c"] = 0.1,
+    # ) -> None:
+    #     pass
+    #
+    #
+    # get_function_schema(f, description="function f")
+    #
+    # #   {'type': 'function',
+    # #    'function': {'description': 'function f',
+    # #        'name': 'f',
+    # #        'parameters': {'type': 'object',
+    # #           'properties': {'a': {'type': 'str', 'description': 'Parameter a'},
+    # #               'b': {'type': 'int', 'description': 'b'},
+    # #               'c': {'type': 'float', 'description': 'Parameter c'}},
+    # #           'required': ['a']}}}
+
+    # In order to ensure strict schema adherence, disable parallel function calls by supplying parallel_tool_calls: false. With this setting, the model will generate one function call at a time.
+
+    # Reference: https://platform.openai.com/docs/guides/structured-outputs#supported-schemas
+    # The following types are supported for Structured Outputs: String, Number, Boolean, Integer, Object, Array, Enum, anyOf
+
     # , cancellation_token: CancellationToken
-    def decide_filters(filters_mapped: Annotated[Filters, "Mapped filters from user's query"]) -> Filters:
-        return Filters(**filters_mapped.model_dump())
+    def decide_filters(
+        reason: Annotated[str, "Reason why such mapping was made"],
+        filters: Annotated[Dict[str, List[str]], "User's filters"],  # TODO: TO FIX
+        successful: Annotated[bool, "Was the mapping successful and valid"],
+    ) -> Filters:
+        """
+        Decide filters based on the user's input. In case of failure, successful must be False, arbitrary filters can be returned.
+        """
+        return Filters(reason=reason, filters=filters, successful=successful)
+
+    from autogen_core._function_utils import get_function_schema
+
+    func_schema = get_function_schema(decide_filters, description=decide_filters.__doc__)
+    i = 100
 
     system_message = (
         "Please map natural language input to filters. Example: what is happening with B35? Answer: 'system': ['B35']"
