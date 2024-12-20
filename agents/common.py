@@ -19,6 +19,9 @@ class FinalResult:
     result: str
 
 
+# TODO: no Dicts for Structured Outputs
+
+
 @dataclass
 class PipelineResult:
     dataframe: Dict[str, Any]

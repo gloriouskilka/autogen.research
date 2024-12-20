@@ -38,7 +38,7 @@ from tools.function_tools import (
     multiply_numbers,
     # query_tool,
 )
-from agents.common import UserInput, Filters
+from agents.common import UserInput, Filters, FilterItem
 
 from utils.settings import settings
 from utils.tracing import configure_tracing
@@ -91,16 +91,15 @@ async def main():
 
     # , cancellation_token: CancellationToken
     def decide_filters(
-        # reason: Annotated[str, "Reason why such mapping was made"],
-        # filters: Annotated[Dict[str, List[str]], "User's filters"],  # TODO: TO FIX
-        # successful: Annotated[bool, "Was the mapping successful and valid"],
-        filters: Annotated[Filters, "Mapping of natural language input to filters"],
+        reason: Annotated[str, "Reason why such mapping was made"],
+        filters: Annotated[List[FilterItem], "User's filters"],
+        successful: Annotated[bool, "Was the mapping successful and valid"],
     ) -> Filters:
         """
         Decide filters based on the user's input. In case of failure, successful must be False, arbitrary filters can be returned.
         """
-        # return Filters(reason=reason, filters=filters, successful=successful)
-        return Filters(**filters.model_dump())
+        return Filters(reason=reason, filters=filters, successful=successful)
+        # return Filters(**filters.model_dump())
 
     from autogen_core._function_utils import get_function_schema
 
