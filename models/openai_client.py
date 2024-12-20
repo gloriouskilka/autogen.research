@@ -67,43 +67,28 @@ _AsyncStreamT = TypeVar("_AsyncStreamT", bound=AsyncStream[Any])
 def convert_tools(
     tools: Sequence[Tool | ToolSchema],
 ) -> List[ChatCompletionToolParam]:
-    # result: List[ChatCompletionToolParam] = []
-    # for tool in tools:
-    #     if isinstance(tool, Tool):
-    #         tool_schema = tool.schema
-    #     else:
-    #         assert isinstance(tool, dict)
-    #         tool_schema = tool
-    #
-    #     param_dict: dict = ChatCompletionToolParam(
-    #         type="function",
-    #         function=FunctionDefinition(
-    #             name=tool_schema["name"],
-    #             description=tool_schema.get("description", ""),
-    #             parameters=cast(FunctionParameters, tool_schema.get("parameters", {})),
-    #             strict=True,
-    #         ).model_dump(),
-    #     )
-    #     parameters_dict = param_dict["function"]["parameters"]
-    #     parameters_dict["additionalProperties"] = False
-    #
-    #     # Recursively set "additionalProperties": False
-    #     # def set_additional_properties_false(schema):
-    #     #     if isinstance(schema, dict):
-    #     #         if "properties" in schema:
-    #     #             schema["additionalProperties"] = False
-    #     #             for prop in schema["properties"].values():
-    #     #                 set_additional_properties_false(prop)
-    #     #         elif "items" in schema:
-    #     #             set_additional_properties_false(schema["items"])
-    #     #         elif "anyOf" in schema or "oneOf" in schema or "allOf" in schema:
-    #     #             for subschema in schema.get("anyOf", []) + schema.get("oneOf", []) + schema.get("allOf", []):
-    #     #                 set_additional_properties_false(subschema)
-    #
-    #     # set_additional_properties_false(parameters_dict)
-    #
-    #     result.append(param_dict)
-    #     assert_valid_name(param_dict["function"]["name"])
+    result: List[ChatCompletionToolParam] = []
+    for tool in tools:
+        if isinstance(tool, Tool):
+            tool_schema = tool.schema
+        else:
+            assert isinstance(tool, dict)
+            tool_schema = tool
+
+        param_dict: dict = ChatCompletionToolParam(
+            type="function",
+            function=FunctionDefinition(
+                name=tool_schema["name"],
+                description=tool_schema.get("description", ""),
+                parameters=cast(FunctionParameters, tool_schema.get("parameters", {})),
+                strict=True,
+            ).model_dump(),
+        )
+        parameters_dict = param_dict["function"]["parameters"]
+        parameters_dict["additionalProperties"] = False
+
+        result.append(param_dict)
+        assert_valid_name(param_dict["function"]["name"])
 
     # result = [
     #     {
@@ -118,7 +103,7 @@ def convert_tools(
     #                             "filters": {
     #                                 "anyOf": [
     #                                     {
-    #                                         "additionalProperties": {"items": {"type": "string"}, "type": "array"},
+    #                                         "additionalProperties": False,  # TODO: Modified manually, but also removed | None from Filters
     #                                         "type": "object",
     #                                     },
     #                                     {"type": "null"},
@@ -131,6 +116,7 @@ def convert_tools(
     #                         "required": ["reason", "filters", "successful"],
     #                         "title": "Filters",
     #                         "type": "object",
+    #                         "additionalProperties": False,  # TODO: ADDED MANUALLY
     #                     }
     #                 },
     #                 "required": ["filters_mapped"],
@@ -141,44 +127,6 @@ def convert_tools(
     #         "type": "function",
     #     }
     # ]
-
-    result = [
-        {
-            "function": {
-                "description": "DAVAI",
-                "name": "decide_filters",
-                "parameters": {
-                    "additionalProperties": False,
-                    "properties": {
-                        "filters_mapped": {
-                            "properties": {
-                                "filters": {
-                                    "anyOf": [
-                                        {
-                                            "additionalProperties": False,  # TODO: Modified manually, but also removed | None from Filters
-                                            "type": "object",
-                                        },
-                                        {"type": "null"},
-                                    ],
-                                    "title": "Filters",
-                                },
-                                "reason": {"title": "Reason", "type": "string"},
-                                "successful": {"title": "Successful", "type": "boolean"},
-                            },
-                            "required": ["reason", "filters", "successful"],
-                            "title": "Filters",
-                            "type": "object",
-                            "additionalProperties": False,  # TODO: ADDED MANUALLY
-                        }
-                    },
-                    "required": ["filters_mapped"],
-                    "type": "object",
-                },
-                "strict": True,
-            },
-            "type": "function",
-        }
-    ]
 
     return result
 

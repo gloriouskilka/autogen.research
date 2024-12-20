@@ -48,7 +48,7 @@ from utils.tracing import configure_tracing
 
 class Filters(BaseModel):
     reason: str
-    filters: Dict[str, List[str]] | None
+    filters: Dict[str, List[str]]
     successful: bool
 
 
