@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import Dict, Any
+from typing import Dict, Any, List
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 @dataclass
@@ -42,3 +42,14 @@ class DescriptionDict(BaseModel):
 
 class OverviewInfo(BaseModel):
     overview: Dict[str, Any]
+
+
+class FilterItem(BaseModel):
+    key: str = Field(..., description="Filter key")
+    values: List[str] = Field(..., description="List of filter values")
+
+
+class Filters(BaseModel):
+    reason: str = Field(..., description="Reason why such mapping was made")
+    filters: List[FilterItem] = Field(..., description="User's filters")
+    successful: bool = Field(..., description="Was the mapping successful and valid")

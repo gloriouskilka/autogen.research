@@ -30,13 +30,6 @@ from loguru import logger
 from pydantic import BaseModel
 
 
-# TODO: DEBUG: removed | None - not allowed in Structured Output
-class Filters(BaseModel):
-    reason: str
-    filters: Dict[str, List[str]]
-    successful: bool
-
-
 class ResponseFormatAssistantAgent(AssistantAgent):
     """An agent that provides assistance with tool use.
 
