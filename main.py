@@ -1,5 +1,6 @@
 import asyncio
 import json
+from dataclasses import dataclass
 from typing import List, Dict, Any, Annotated, Optional
 
 from autogen_agentchat.agents import AssistantAgent
@@ -16,7 +17,7 @@ from deepdiff import DeepDiff
 from langfuse import Langfuse
 from loguru import logger
 from openai.types import FunctionDefinition, FunctionParameters
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from agents.ResponseFormatAssistantAgent import ResponseFormatAssistantAgent
 
@@ -89,17 +90,31 @@ async def main():
     # Reference: https://platform.openai.com/docs/guides/structured-outputs#supported-schemas
     # The following types are supported for Structured Outputs: String, Number, Boolean, Integer, Object, Array, Enum, anyOf
 
+    # @dataclass
+    class Checking(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+        list: List[FilterItem]
+
+    # @dataclass
+    class CheckingStr(BaseModel):
+        model_config = ConfigDict(extra="forbid")
+        some_str: Annotated[str, "User's filters"]
+
     # , cancellation_token: CancellationToken
     def decide_filters(
         reason: Annotated[str, "Reason why such mapping was made"],
-        filters: Annotated[List[FilterItem], "User's filters"],
+        # filters: Annotated[str, "User's filters"], # THIS WORKS
+        filters: Annotated[
+            CheckingStr, "User's filters"
+        ],  # THIS IS NOT: openai.BadRequestError: Error code: 400 - {'error': {'message': "Invalid schema for function 'decide_filters': In context=('properties', 'filters'), 'additionalProperties' is required to be supplied and to be false.", 'type': 'invalid_request_error', 'param': 'tools[0].function.parameters', 'code': 'invalid_function_parameters'}}
         successful: Annotated[bool, "Was the mapping successful and valid"],
-    ) -> Filters:
+    ) -> str:
         """
         Decide filters based on the user's input. In case of failure, successful must be False, arbitrary filters can be returned.
         """
-        return Filters(reason=reason, filters=filters, successful=successful)
+        # return Filters(reason=reason, filters=filters, successful=successful)
         # return Filters(**filters.model_dump())
+        return "DA"
 
     from autogen_core._function_utils import get_function_schema
 

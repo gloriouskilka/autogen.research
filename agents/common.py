@@ -39,6 +39,7 @@ class FinalPipelineInput:
     info: Dict[str, Any]
 
 
+# TODO: no BaseModel, @dataclass
 class DescriptionDict(BaseModel):
     description: Dict[str, Any]
 
@@ -48,11 +49,11 @@ class OverviewInfo(BaseModel):
 
 
 class FilterItem(BaseModel):
-    key: str = Field(..., description="Filter key")
-    values: List[str] = Field(..., description="List of filter values")
+    key: str
+    values: List[str]
 
 
 class Filters(BaseModel):
-    reason: str = Field(..., description="Reason why such mapping was made")
-    filters: List[FilterItem] = Field(..., description="User's filters")
-    successful: bool = Field(..., description="Was the mapping successful and valid")
+    reason: str
+    filters: List[FilterItem]
+    successful: bool
