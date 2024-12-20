@@ -73,11 +73,12 @@ async def main():
     runtime.start()
 
     # , cancellation_token: CancellationToken
-    def decide_filters(
+    def decide_system_filters(
         filters: Annotated[Filters, "Mapped filters"],
     ) -> Filters:
         """
-        Decide filters based on the user's input. In case of failure, successful must be False, arbitrary filters can be returned.
+        The user will ask about a system or multiple systems, no need to worry what that means.
+        Please map the user's input to the system filters.
         Examples: "what is happening with B35 and B36 and B37?" -> {"system": ["B35", "B36", "B37"]}
         """
 
@@ -88,7 +89,7 @@ async def main():
 
     from autogen_core._function_utils import get_function_schema
 
-    func_schema = get_function_schema(decide_filters, description=decide_filters.__doc__)
+    func_schema = get_function_schema(decide_system_filters, description=decide_system_filters.__doc__)
     i = 100
 
     # task_to_result = {
@@ -120,8 +121,8 @@ async def main():
             "reason": Any,
             "filters": [
                 {
-                    "key": "GI21_issues",
-                    "values": ["performance", "feedback", "training", "environment", "stress", "objectives"],
+                    "key": "system",
+                    "values": ["gi21"],
                 }
             ],
             "successful": True,
@@ -133,8 +134,8 @@ async def main():
             name="ResponseFormatAssistantAgent",
             model_client=model_client,
             response_format=Filters,
-            system_message="Please map natural language input to filters and write your thoughts about mappings.",
-            tools=[FunctionTool(decide_filters, description="DAVAI")],
+            system_message="The user will mention some IDs - those IDs are system's names, please help to extract them.",
+            tools=[FunctionTool(decide_system_filters, description="DAVAI")],
             # reflect_on_tool_use=True,
             # response_format_reflect_on_tool_use=FiltersReflect,
         )
