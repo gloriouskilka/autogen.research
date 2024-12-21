@@ -15,3 +15,5 @@ aiohttp
 langfuse
 python-dotenv
 openai
+pandas
+grpcio

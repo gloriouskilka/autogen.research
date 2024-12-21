@@ -26,7 +26,6 @@ from autogen_ext.models.openai._openai_client import (
     _add_usage,
     assert_valid_name,
 )
-from click import Choice
 from loguru import logger
 from openai import AsyncStream, APIConnectionError, APITimeoutError
 from openai._base_client import get_platform
@@ -36,6 +35,7 @@ from openai._types import ResponseT, HttpxSendArgs
 from openai._utils import asyncify
 from openai.types import FunctionDefinition, FunctionParameters
 from openai.types.chat import ParsedChatCompletion, ChatCompletion, ParsedChoice, ChatCompletionToolParam
+from openai.types.chat.chat_completion import Choice
 from pydantic import BaseModel
 from typing_extensions import Unpack
 
