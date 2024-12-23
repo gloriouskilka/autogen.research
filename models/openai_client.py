@@ -581,48 +581,46 @@ class OpenAIChatCompletionClientStructuredOutput(OpenAIChatCompletionClient):
     #     )
 
 
+class Verification(Exception):
+    result: CreateResult
+
+    def __init__(self, result: CreateResult):
+        self.result = result
+
+
+class FunctionCallRecord(BaseModel):
+    function_name: str
+    arguments: dict
+    # You can include other fields as necessary, such as the function call id, etc.
+
+
+class FunctionCallVerification(Verification):
+    function_calls: list[FunctionCallRecord]
+
+    def __init__(
+        self,
+        result: CreateResult,
+        function_calls: list[FunctionCallRecord],
+    ):
+        super().__init__(result)
+        self.function_calls = function_calls
+
+
+class TextResultVerification(Verification):
+    content: str
+
+    def __init__(self, result: CreateResult):
+        super().__init__(result)
+        self.content = result.content
+
+
 class OpenAIChatCompletionClientStructuredOutputWithCreateIntercept(
     OpenAIChatCompletionClientStructuredOutput
 ):
-    class Verification(Exception):
-        result: CreateResult
-
-        def __init__(self, result: CreateResult):
-            self.result = result
-
-    class FunctionCallRecord(BaseModel):
-        function_name: str
-        arguments: dict
-        # You can include other fields as necessary, such as the function call id, etc.
-
-    class FunctionCallVerification(Verification):
-        function_calls: list[
-            "OpenAIChatCompletionClientStructuredOutputWithCreateIntercept.FunctionCallRecord"
-        ]
-
-        def __init__(
-            self,
-            result: CreateResult,
-            function_calls: list[
-                "OpenAIChatCompletionClientStructuredOutputWithCreateIntercept.FunctionCallRecord"
-            ],
-        ):
-            super().__init__(result)
-            self.function_calls = function_calls
-
-    class TextResultVerification(Verification):
-        content: str
-
-        def __init__(self, result: CreateResult):
-            super().__init__(result)
-            self.content = result.content
-
     def __init__(self, throw_on_create=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.throw_on_create = throw_on_create
-        self.create_results: list[
-            OpenAIChatCompletionClientStructuredOutputWithCreateIntercept.Verification
-        ] = []
+        self.create_results: list[Verification] = []
 
     def set_throw_on_create(self, throw_on_create):
         self.throw_on_create = throw_on_create
@@ -652,14 +650,14 @@ class OpenAIChatCompletionClientStructuredOutputWithCreateIntercept(
                     assert isinstance(
                         function_call, FunctionCall
                     ), f"Expected FunctionCall, got {type(function_call)}"
-                    function_call_record = self.FunctionCallRecord(
+                    function_call_record = FunctionCallRecord(
                         function_name=function_call.name,
                         arguments=json.loads(function_call.arguments),
                     )
                     function_calls.append(function_call_record)
 
                 # After collecting all function calls, create the verification object
-                verification = self.FunctionCallVerification(result, function_calls)
+                verification = FunctionCallVerification(result, function_calls)
 
             elif result.finish_reason == "stop":
                 # Handle text results
@@ -667,7 +665,7 @@ class OpenAIChatCompletionClientStructuredOutputWithCreateIntercept(
                     result.content, str
                 ), "Expected result.content to be a string"
 
-                verification = self.TextResultVerification(result)
+                verification = TextResultVerification(result)
 
             else:
                 raise Exception(f"Unexpected finish_reason: {result.finish_reason}")
