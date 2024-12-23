@@ -78,12 +78,42 @@ from utils.tracing import configure_tracing
 #         logger.debug(result)
 # -Prior check code, should be incorporated into the main code below
 
+from typing import Any, Dict, List
+
+
+def find_any_fields(data: Dict) -> List[str]:
+    """
+    Recursively find all keys in a dictionary where the value is `Any`.
+    """
+    any_fields = []
+    for key, value in data.items():
+        if value is Any:
+            any_fields.append(key)
+        elif isinstance(value, dict):
+            # Recursively search in nested dictionaries
+            nested_any_fields = find_any_fields(value)
+            any_fields.extend(
+                [f"{key}.{nested_key}" for nested_key in nested_any_fields]
+            )
+    return any_fields
+
+
+def remove_any_fields(data: Dict, any_fields: List[str]):
+    """
+    Remove fields from a dictionary based on a list of keys.
+    """
+    for field in any_fields:
+        keys = field.split(".")
+        d = data
+        for key in keys[:-1]:
+            d = d.get(key, {})
+        d.pop(keys[-1], None)
+
 
 async def handle_verification(verification, expected_function_calls):
     if isinstance(
         verification, OpenAIChatCompletionClientWrapper.FunctionCallVerification
     ):
-        # Handle function call verification
         actual_function_calls = []
         for function_call_record in verification.function_calls:
             function_name = function_call_record.function_name
@@ -93,23 +123,25 @@ async def handle_verification(verification, expected_function_calls):
                 {"function_name": function_name, "arguments": arguments}
             )
 
-        # Compare actual function calls with expected function calls
-        any_fields = [
-            k
-            for k, v in expected_function_calls[0]["arguments"]["filters"].items()
-            if v is Any
-        ]
+        expected_arguments = expected_function_calls[0]["arguments"]
+        actual_arguments = actual_function_calls[0]["arguments"]
+
+        # Identify fields set to Any in the expected result
+        any_fields = find_any_fields(expected_arguments)
 
         # Log the values of the fields that are not checked
         for field in any_fields:
-            actual_value = actual_function_calls[0]["arguments"]["filters"].get(field)
+            keys = field.split(".")
+            actual_value = actual_arguments
+            for key in keys:
+                actual_value = actual_value.get(key, None)
             logger.info(
                 f"Field '{field}' is not checked, but its value is: {actual_value}"
             )
 
-            # Remove the field from both dictionaries before comparison
-            expected_function_calls[0]["arguments"]["filters"].pop(field, None)
-            actual_function_calls[0]["arguments"]["filters"].pop(field, None)
+        # Remove the fields set to Any before comparison
+        remove_any_fields(expected_arguments, any_fields)
+        remove_any_fields(actual_arguments, any_fields)
 
         # Now compare the remaining fields using DeepDiff
         diff = DeepDiff(expected_function_calls, actual_function_calls)
@@ -121,12 +153,9 @@ async def handle_verification(verification, expected_function_calls):
     elif isinstance(
         verification, OpenAIChatCompletionClientWrapper.TextResultVerification
     ):
-        # Handle text result verification
         content = verification.content
         print(f"Text content: {content}")
-        # Implement your business logic based on the text content
     else:
-        # Handle unexpected verification types
         raise Exception("Unknown verification type.")
 
 
