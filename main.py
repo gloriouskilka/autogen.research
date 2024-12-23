@@ -312,7 +312,7 @@ async def main():
                 },
             }
         ],
-        "system: sle01746, e pacan chus": [
+        "Yo, e, look at this, pacan - system should be sle01746": [
             {
                 "function_name": "decide_system_filters",
                 "arguments": {

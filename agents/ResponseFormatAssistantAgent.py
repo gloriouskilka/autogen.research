@@ -1,7 +1,17 @@
 import asyncio
 import json
 import warnings
-from typing import Callable, List, Any, Awaitable, Dict, Sequence, AsyncGenerator, Mapping, Type
+from typing import (
+    Callable,
+    List,
+    Any,
+    Awaitable,
+    Dict,
+    Sequence,
+    AsyncGenerator,
+    Mapping,
+    Type,
+)
 
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.base import Handoff as HandoffBase, Response
@@ -200,7 +210,9 @@ class ResponseFormatAssistantAgent(AssistantAgent):
         model_client: ChatCompletionClient,
         *,
         response_format: Type[BaseModel] = None,
-        tools: List[Tool | Callable[..., Any] | Callable[..., Awaitable[Any]]] | None = None,
+        tools: (
+            List[Tool | Callable[..., Any] | Callable[..., Awaitable[Any]]] | None
+        ) = None,
         handoffs: List[HandoffBase | str] | None = None,
         description: str = "An agent that provides assistance with ability to use tools.",
         system_message: (
@@ -223,7 +235,9 @@ class ResponseFormatAssistantAgent(AssistantAgent):
         self._response_format_reflect_on_tool_use = response_format_reflect_on_tool_use
         self._response_format = response_format
         if response_format is not None:
-            assert isinstance(response_format, type) and issubclass(response_format, BaseModel)
+            assert isinstance(response_format, type) and issubclass(
+                response_format, BaseModel
+            )
 
         # self._model_client = model_client
         # if system_message is None:
@@ -284,7 +298,9 @@ class ResponseFormatAssistantAgent(AssistantAgent):
             return [TextMessage, HandoffMessage]
         return [TextMessage]
 
-    async def on_messages(self, messages: Sequence[ChatMessage], cancellation_token: CancellationToken) -> Response:
+    async def on_messages(
+        self, messages: Sequence[ChatMessage], cancellation_token: CancellationToken
+    ) -> Response:
         async for message in self.on_messages_stream(messages, cancellation_token):
             if isinstance(message, Response):
                 return message
@@ -295,9 +311,14 @@ class ResponseFormatAssistantAgent(AssistantAgent):
     ) -> AsyncGenerator[AgentMessage | Response, None]:
         # Add messages to the model context.
         for msg in messages:
-            if isinstance(msg, MultiModalMessage) and self._model_client.capabilities["vision"] is False:
+            if (
+                isinstance(msg, MultiModalMessage)
+                and self._model_client.capabilities["vision"] is False
+            ):
                 raise ValueError("The model does not support vision.")
-            self._model_context.append(UserMessage(content=msg.content, source=msg.source))
+            self._model_context.append(
+                UserMessage(content=msg.content, source=msg.source)
+            )
 
         # Inner messages.
         inner_messages: List[AgentMessage] = []
@@ -311,31 +332,47 @@ class ResponseFormatAssistantAgent(AssistantAgent):
             llm_messages,
             tools=self._tools + self._handoff_tools,
             cancellation_token=cancellation_token,
-            extra_create_args={"response_format": self._response_format, "parallel_tool_calls": False},
+            extra_create_args={
+                "response_format": self._response_format,
+                "parallel_tool_calls": self._response_format is None,
+            },
             json_output=True,
         )
 
         # Add the response to the model context.
-        self._model_context.append(AssistantMessage(content=result.content, source=self.name))
+        self._model_context.append(
+            AssistantMessage(content=result.content, source=self.name)
+        )
 
         # Check if the response is a string and return it.
         if isinstance(result.content, str):
             yield Response(
-                chat_message=TextMessage(content=result.content, source=self.name, models_usage=result.usage),
+                chat_message=TextMessage(
+                    content=result.content, source=self.name, models_usage=result.usage
+                ),
                 inner_messages=inner_messages,
             )
             return
 
         # Process tool calls.
-        assert isinstance(result.content, list) and all(isinstance(item, FunctionCall) for item in result.content)
-        tool_call_msg = ToolCallMessage(content=result.content, source=self.name, models_usage=result.usage)
+        assert isinstance(result.content, list) and all(
+            isinstance(item, FunctionCall) for item in result.content
+        )
+        tool_call_msg = ToolCallMessage(
+            content=result.content, source=self.name, models_usage=result.usage
+        )
         logger.debug(tool_call_msg)
         # Add the tool call message to the output.
         inner_messages.append(tool_call_msg)
         yield tool_call_msg
 
         # Execute the tool calls.
-        results = await asyncio.gather(*[self._execute_tool_call(call, cancellation_token) for call in result.content])
+        results = await asyncio.gather(
+            *[
+                self._execute_tool_call(call, cancellation_token)
+                for call in result.content
+            ]
+        )
         tool_call_result_msg = ToolCallResultMessage(content=results, source=self.name)
         logger.debug(tool_call_result_msg)
         self._model_context.append(FunctionExecutionResultMessage(content=results))
@@ -356,7 +393,11 @@ class ResponseFormatAssistantAgent(AssistantAgent):
                 )
             # Return the output messages to signal the handoff.
             yield Response(
-                chat_message=HandoffMessage(content=handoffs[0].message, target=handoffs[0].target, source=self.name),
+                chat_message=HandoffMessage(
+                    content=handoffs[0].message,
+                    target=handoffs[0].target,
+                    source=self.name,
+                ),
                 inner_messages=inner_messages,
             )
             return
@@ -370,15 +411,19 @@ class ResponseFormatAssistantAgent(AssistantAgent):
                 cancellation_token=cancellation_token,
                 extra_create_args={
                     "response_format": self._response_format_reflect_on_tool_use,
-                    "parallel_tool_calls": False,
+                    "parallel_tool_calls": self._response_format is None,
                 },
             )
             assert isinstance(result.content, str)
             # Add the response to the model context.
-            self._model_context.append(AssistantMessage(content=result.content, source=self.name))
+            self._model_context.append(
+                AssistantMessage(content=result.content, source=self.name)
+            )
             # Yield the response.
             yield Response(
-                chat_message=TextMessage(content=result.content, source=self.name, models_usage=result.usage),
+                chat_message=TextMessage(
+                    content=result.content, source=self.name, models_usage=result.usage
+                ),
                 inner_messages=inner_messages,
             )
         else:
@@ -405,7 +450,14 @@ class ResponseFormatAssistantAgent(AssistantAgent):
         try:
             if not self._tools + self._handoff_tools:
                 raise ValueError("No tools are available.")
-            tool = next((t for t in self._tools + self._handoff_tools if t.name == tool_call.name), None)
+            tool = next(
+                (
+                    t
+                    for t in self._tools + self._handoff_tools
+                    if t.name == tool_call.name
+                ),
+                None,
+            )
             if tool is None:
                 raise ValueError(f"The tool '{tool_call.name}' is not available.")
             arguments = json.loads(tool_call.arguments)
