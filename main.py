@@ -94,14 +94,30 @@ async def handle_verification(verification, expected_function_calls):
             )
 
         # Compare actual function calls with expected function calls
-        if actual_function_calls == expected_function_calls:
-            print("Function calls match the expected function calls.")
+        any_fields = [
+            k
+            for k, v in expected_function_calls[0]["arguments"]["filters"].items()
+            if v is Any
+        ]
+
+        # Log the values of the fields that are not checked
+        for field in any_fields:
+            actual_value = actual_function_calls[0]["arguments"]["filters"].get(field)
+            logger.info(
+                f"Field '{field}' is not checked, but its value is: {actual_value}"
+            )
+
+            # Remove the field from both dictionaries before comparison
+            expected_function_calls[0]["arguments"]["filters"].pop(field, None)
+            actual_function_calls[0]["arguments"]["filters"].pop(field, None)
+
+        # Now compare the remaining fields using DeepDiff
+        diff = DeepDiff(expected_function_calls, actual_function_calls)
+        if diff:
+            logger.error(f"Differences: {diff}")
         else:
-            print("Function calls do not match the expected function calls.")
-            print("Expected:")
-            print(json.dumps(expected_function_calls, indent=2))
-            print("Actual:")
-            print(json.dumps(actual_function_calls, indent=2))
+            logger.info("No differences found.")
+
     elif isinstance(
         verification, OpenAIChatCompletionClientWrapper.TextResultVerification
     ):
@@ -112,6 +128,41 @@ async def handle_verification(verification, expected_function_calls):
     else:
         # Handle unexpected verification types
         raise Exception("Unknown verification type.")
+
+
+# async def handle_verification_previous(verification, expected_function_calls):
+#     if isinstance(
+#         verification, OpenAIChatCompletionClientWrapper.FunctionCallVerification
+#     ):
+#         # Handle function call verification
+#         actual_function_calls = []
+#         for function_call_record in verification.function_calls:
+#             function_name = function_call_record.function_name
+#             arguments = function_call_record.arguments
+#             print(f"Function called: {function_name} with arguments: {arguments}")
+#             actual_function_calls.append(
+#                 {"function_name": function_name, "arguments": arguments}
+#             )
+#
+#         # Compare actual function calls with expected function calls
+#         if actual_function_calls == expected_function_calls:
+#             print("Function calls match the expected function calls.")
+#         else:
+#             print("Function calls do not match the expected function calls.")
+#             print("Expected:")
+#             print(json.dumps(expected_function_calls, indent=2))
+#             print("Actual:")
+#             print(json.dumps(actual_function_calls, indent=2))
+#     elif isinstance(
+#         verification, OpenAIChatCompletionClientWrapper.TextResultVerification
+#     ):
+#         # Handle text result verification
+#         content = verification.content
+#         print(f"Text content: {content}")
+#         # Implement your business logic based on the text content
+#     else:
+#         # Handle unexpected verification types
+#         raise Exception("Unknown verification type.")
 
 
 async def main():
@@ -260,50 +311,49 @@ async def main():
 
         # +Before set_throw_on_create=True
 
-        # result = await agent.run(task=task)
-        result: TaskResult = await agent.run(task=task)
-        response_content = result.messages[-1].content
-        # Ensure the response content is a valid JSON string before loading it
-        # response_content: Optional[str] = response.content if isinstance(response.content, str) else None
-        if response_content is None:
-            raise ValueError("Response content is not a valid JSON string")
-
-        # Print the response content after loading it as JSON
-        logger.debug(json.loads(response_content))
-
-        # Validate the response content with the MathReasoning model
-        filters_parsed = Filters.model_validate(json.loads(response_content))
-        # -Structured
-
-        # result = await mapping_agent.run(task=task)
-        # tool_call_message = next(x for x in result.messages if isinstance(x, ToolCallMessage))
-        # arguments = json.loads(tool_call_message.content[0].arguments)
-
-        # Identify fields set to Any in the expected result
-        any_fields = [k for k, v in result_expected.items() if v is Any]
-
-        arguments = filters_parsed.model_dump()
-
-        # Log the values of the fields that are not checked
-        for field in any_fields:
-            actual_value = arguments.get(field)
-            logger.info(
-                f"Field '{field}' is not checked, but its value is: {actual_value}"
-            )
-
-            # Remove the field from both dictionaries before comparison
-            result_expected.pop(field, None)
-            arguments.pop(field, None)
-
-        # Now compare the remaining fields using DeepDiff
-        diff = DeepDiff(result_expected, arguments)
-        if diff:
-            logger.error(f"Task: {task}, Differences: {diff}")
-        else:
-            logger.info(f"Task: {task}, No differences found.")
-
-        logger.debug(result)
-
+        # # result = await agent.run(task=task)
+        # result: TaskResult = await agent.run(task=task)
+        # response_content = result.messages[-1].content
+        # # Ensure the response content is a valid JSON string before loading it
+        # # response_content: Optional[str] = response.content if isinstance(response.content, str) else None
+        # if response_content is None:
+        #     raise ValueError("Response content is not a valid JSON string")
+        #
+        # # Print the response content after loading it as JSON
+        # logger.debug(json.loads(response_content))
+        #
+        # # Validate the response content with the MathReasoning model
+        # filters_parsed = Filters.model_validate(json.loads(response_content))
+        # # -Structured
+        #
+        # # result = await mapping_agent.run(task=task)
+        # # tool_call_message = next(x for x in result.messages if isinstance(x, ToolCallMessage))
+        # # arguments = json.loads(tool_call_message.content[0].arguments)
+        #
+        # # Identify fields set to Any in the expected result
+        # any_fields = [k for k, v in result_expected.items() if v is Any]
+        #
+        # arguments = filters_parsed.model_dump()
+        #
+        # # Log the values of the fields that are not checked
+        # for field in any_fields:
+        #     actual_value = arguments.get(field)
+        #     logger.info(
+        #         f"Field '{field}' is not checked, but its value is: {actual_value}"
+        #     )
+        #
+        #     # Remove the field from both dictionaries before comparison
+        #     result_expected.pop(field, None)
+        #     arguments.pop(field, None)
+        #
+        # # Now compare the remaining fields using DeepDiff
+        # diff = DeepDiff(result_expected, arguments)
+        # if diff:
+        #     logger.error(f"Task: {task}, Differences: {diff}")
+        # else:
+        #     logger.info(f"Task: {task}, No differences found.")
+        #
+        # logger.debug(result)
         # -Before set_throw_on_create=True
 
         i = 100
