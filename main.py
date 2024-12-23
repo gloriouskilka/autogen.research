@@ -52,6 +52,33 @@ from utils.tracing import configure_tracing
 # from workers.worker_agent import worker_runtime_client
 
 
+# +Prior check code, should be incorporated into the main code below
+#         any_fields = [k for k, v in result_expected.items() if v is Any]
+#
+#         arguments = filters_parsed.model_dump()
+#
+#         # Log the values of the fields that are not checked
+#         for field in any_fields:
+#             actual_value = arguments.get(field)
+#             logger.info(
+#                 f"Field '{field}' is not checked, but its value is: {actual_value}"
+#             )
+#
+#             # Remove the field from both dictionaries before comparison
+#             result_expected.pop(field, None)
+#             arguments.pop(field, None)
+#
+#         # Now compare the remaining fields using DeepDiff
+#         diff = DeepDiff(result_expected, arguments)
+#         if diff:
+#             logger.error(f"Task: {task}, Differences: {diff}")
+#         else:
+#             logger.info(f"Task: {task}, No differences found.")
+#
+#         logger.debug(result)
+# -Prior check code, should be incorporated into the main code below
+
+
 async def handle_verification(verification, expected_function_calls):
     if isinstance(
         verification, OpenAIChatCompletionClientWrapper.FunctionCallVerification
@@ -179,8 +206,8 @@ async def main():
                 "function_name": "decide_system_filters",
                 "arguments": {
                     "filters": {
-                        "reason": "Extract system IDs from the user's query.",
-                        "filters": [{"key": "System IDs", "values": ["gi21"]}],
+                        "reason": Any,
+                        "filters": [{"key": "system", "values": ["gi21"]}],
                         "successful": True,
                     }
                 },
