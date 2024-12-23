@@ -292,7 +292,31 @@ async def main():
                     }
                 },
             }
-        ]
+        ],
+        "system: sle01746": [
+            {
+                "function_name": "decide_system_filters",
+                "arguments": {
+                    "filters": {
+                        "reason": Any,
+                        "filters": [{"key": "system", "values": ["sle01746"]}],
+                        "successful": True,
+                    }
+                },
+            }
+        ],
+        "system: sle01746, e pacan chus": [
+            {
+                "function_name": "decide_system_filters",
+                "arguments": {
+                    "filters": {
+                        "reason": Any,
+                        "filters": [{"key": "system", "values": ["sle01746"]}],
+                        "successful": True,
+                    }
+                },
+            }
+        ],
     }
 
     model_client.set_throw_on_create(True)
@@ -384,9 +408,6 @@ async def main():
         #
         # logger.debug(result)
         # -Before set_throw_on_create=True
-
-        i = 100
-        break
 
     i = 100
 
