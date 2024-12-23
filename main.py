@@ -325,7 +325,7 @@ async def main():
         name="ResponseFormatAssistantAgent",
         model_client=model_client,
         response_format=Filters,
-        system_message="The user will mention some IDs - those IDs are system's names, please help to extract them",
+        system_message="The user will mention some IDs - those IDs are system's names, please help to extract them. Always use key: 'system'",
         tools=[FunctionTool(decide_system_filters, description="DAVAI")],
         # reflect_on_tool_use=True,
         # response_format_reflect_on_tool_use=FiltersReflect,
