@@ -31,7 +31,10 @@ from agents.analysis_agent import AnalysisAgent
 from agents.final_pipeline_agent import FinalPipelineAgent
 from autogen_core.tool_agent import ToolAgent
 
-from models.openai_client import MyOpenAIChatCompletionClient, OpenAIChatCompletionClientWrapper
+from models.openai_client import (
+    MyOpenAIChatCompletionClient,
+    OpenAIChatCompletionClientWrapper,
+)
 from tools.function_tools import (
     # pipeline_a_tool,
     # pipeline_b_tool,
@@ -47,6 +50,41 @@ from utils.settings import settings
 from utils.tracing import configure_tracing
 
 # from workers.worker_agent import worker_runtime_client
+
+
+async def handle_verification(verification, expected_function_calls):
+    if isinstance(
+        verification, OpenAIChatCompletionClientWrapper.FunctionCallVerification
+    ):
+        # Handle function call verification
+        actual_function_calls = []
+        for function_call_record in verification.function_calls:
+            function_name = function_call_record.function_name
+            arguments = function_call_record.arguments
+            print(f"Function called: {function_name} with arguments: {arguments}")
+            actual_function_calls.append(
+                {"function_name": function_name, "arguments": arguments}
+            )
+
+        # Compare actual function calls with expected function calls
+        if actual_function_calls == expected_function_calls:
+            print("Function calls match the expected function calls.")
+        else:
+            print("Function calls do not match the expected function calls.")
+            print("Expected:")
+            print(json.dumps(expected_function_calls, indent=2))
+            print("Actual:")
+            print(json.dumps(actual_function_calls, indent=2))
+    elif isinstance(
+        verification, OpenAIChatCompletionClientWrapper.TextResultVerification
+    ):
+        # Handle text result verification
+        content = verification.content
+        print(f"Text content: {content}")
+        # Implement your business logic based on the text content
+    else:
+        # Handle unexpected verification types
+        raise Exception("Unknown verification type.")
 
 
 async def main():
@@ -90,7 +128,9 @@ async def main():
 
     from autogen_core._function_utils import get_function_schema
 
-    func_schema = get_function_schema(decide_system_filters, description=decide_system_filters.__doc__)
+    func_schema = get_function_schema(
+        decide_system_filters, description=decide_system_filters.__doc__
+    )
     i = 100
 
     # task_to_result = {
@@ -117,31 +157,81 @@ async def main():
     # }
 
     # The format was changed, this is correct one: {'filters': [{'key': 'GI21_issues', 'values': ['performance', 'feedback', 'training', 'environment', 'stress', 'objectives']}], 'successful': True}
+
+    # task_to_result = {
+    #     "why is my gi21 is so bad?": {
+    #         "reason": Any,
+    #         "filters": [
+    #             {
+    #                 "key": "system",
+    #                 "values": ["gi21"],
+    #             }
+    #         ],
+    #         "successful": True,
+    #     },
+    # }
+    # Need to add info about function name:
+    # # FunctionCallRecord(function_name='decide_system_filters', arguments={'filters': {'reason': "Extract system IDs from the user's query.", 'filters': [{'key': 'System IDs', 'values': ['gi21']}], 'successful': True}})
+
     task_to_result = {
-        "why is my gi21 is so bad?": {
-            "reason": Any,
-            "filters": [
-                {
-                    "key": "system",
-                    "values": ["gi21"],
-                }
-            ],
-            "successful": True,
-        },
+        "why is my gi21 is so bad?": [
+            {
+                "function_name": "decide_system_filters",
+                "arguments": {
+                    "filters": {
+                        "reason": "Extract system IDs from the user's query.",
+                        "filters": [{"key": "System IDs", "values": ["gi21"]}],
+                        "successful": True,
+                    }
+                },
+            }
+        ]
     }
 
     model_client.set_throw_on_create(True)
 
-    for task, result_expected in task_to_result.items():
-        agent = ResponseFormatAssistantAgent(
-            name="ResponseFormatAssistantAgent",
-            model_client=model_client,
-            response_format=Filters,
-            system_message="The user will mention some IDs - those IDs are system's names, please help to extract them",
-            tools=[FunctionTool(decide_system_filters, description="DAVAI")],
-            # reflect_on_tool_use=True,
-            # response_format_reflect_on_tool_use=FiltersReflect,
-        )
+    agent = ResponseFormatAssistantAgent(
+        name="ResponseFormatAssistantAgent",
+        model_client=model_client,
+        response_format=Filters,
+        system_message="The user will mention some IDs - those IDs are system's names, please help to extract them",
+        tools=[FunctionTool(decide_system_filters, description="DAVAI")],
+        # reflect_on_tool_use=True,
+        # response_format_reflect_on_tool_use=FiltersReflect,
+    )
+
+    for task, expected_function_calls in task_to_result.items():
+        # +intercept
+        saved_state = await agent.save_state()
+
+        # expected_function_calls = []
+
+        try:
+            # result = await agent.run(task=task)
+            result: TaskResult = await agent.run(task=task)
+            i = 100
+
+            # Run the tasks sequentially
+            # expected_function_calls = task_entry["expected_function_calls"]
+            # Run the team and capture the output
+            # await Console(team.run_stream(task=task_text))
+
+            # After running, check the verification results
+            # for verification in model_client.create_results:
+            #     await handle_verification(verification)
+
+            # Clear the create_results after handling
+            # model_client.create_results.clear()  # if set_throw_on_create wasn't set
+
+        except OpenAIChatCompletionClientWrapper.Verification as verification:
+            await handle_verification(verification, expected_function_calls)
+
+        # logger.debug(f"\n--- Completed task: {task_text} ---\n")
+        # await team.reset()  # Reset the team state before each task
+        await agent.load_state(saved_state)
+        # -intercept
+
+        # +Before set_throw_on_create=True
 
         # result = await agent.run(task=task)
         result: TaskResult = await agent.run(task=task)
@@ -170,7 +260,9 @@ async def main():
         # Log the values of the fields that are not checked
         for field in any_fields:
             actual_value = arguments.get(field)
-            logger.info(f"Field '{field}' is not checked, but its value is: {actual_value}")
+            logger.info(
+                f"Field '{field}' is not checked, but its value is: {actual_value}"
+            )
 
             # Remove the field from both dictionaries before comparison
             result_expected.pop(field, None)
@@ -184,6 +276,9 @@ async def main():
             logger.info(f"Task: {task}, No differences found.")
 
         logger.debug(result)
+
+        # -Before set_throw_on_create=True
+
         i = 100
         break
 
