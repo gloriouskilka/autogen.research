@@ -34,6 +34,10 @@ from autogen_core.tool_agent import ToolAgent
 from models.openai_client import (
     OpenAIChatCompletionClientStructuredOutput,
     OpenAIChatCompletionClientStructuredOutputWithCreateIntercept,
+    OpenAIChatCompletionClientWithCreateIntercept,
+    Verification,
+    FunctionCallVerification,
+    TextResultVerification,
 )
 from tools.function_tools import (
     # pipeline_a_tool,
@@ -111,10 +115,7 @@ def remove_any_fields(data: Dict, any_fields: List[str]):
 
 
 async def handle_verification(verification, expected_function_calls):
-    if isinstance(
-        verification,
-        OpenAIChatCompletionClientStructuredOutputWithCreateIntercept.FunctionCallVerification,
-    ):
+    if isinstance(verification, FunctionCallVerification):
         actual_function_calls = []
         for function_call_record in verification.function_calls:
             function_name = function_call_record.function_name
@@ -151,10 +152,7 @@ async def handle_verification(verification, expected_function_calls):
         else:
             logger.info("No differences found.")
 
-    elif isinstance(
-        verification,
-        OpenAIChatCompletionClientStructuredOutputWithCreateIntercept.TextResultVerification,
-    ):
+    elif isinstance(verification, TextResultVerification):
         content = verification.content
         print(f"Text content: {content}")
     else:
@@ -213,12 +211,25 @@ async def main():
     # )
 
     # model_client = MyOpenAIChatCompletionClient(  # This has a fix
+    # model_client = (
+    #     OpenAIChatCompletionClientStructuredOutputWithCreateIntercept(  # This has a fix
+    #         model=settings.model,
+    #         api_key=settings.openai_api_key,
+    #     )
+    # )
+
     model_client = (
         OpenAIChatCompletionClientStructuredOutputWithCreateIntercept(  # This has a fix
             model=settings.model,
             api_key=settings.openai_api_key,
         )
     )
+
+    # TODO: to fix without StructuredOutput
+    # model_client = OpenAIChatCompletionClientWithCreateIntercept(  # This has a fix
+    #     model=settings.model,
+    #     api_key=settings.openai_api_key,
+    # )
 
     runtime.start()
 
@@ -325,10 +336,14 @@ async def main():
 
     model_client.set_throw_on_create(True)
 
+    response_format = None
+    if isinstance(model_client, OpenAIChatCompletionClientStructuredOutput):
+        response_format = Filters
+
     agent = ResponseFormatAssistantAgent(
         name="ResponseFormatAssistantAgent",
         model_client=model_client,
-        response_format=Filters,
+        response_format=response_format,
         system_message="The user will mention some IDs - those IDs are system's names, please help to extract them. Always use key: 'system'",
         tools=[FunctionTool(decide_system_filters, description="DAVAI")],
         # reflect_on_tool_use=True,
@@ -358,9 +373,7 @@ async def main():
             # Clear the create_results after handling
             # model_client.create_results.clear()  # if set_throw_on_create wasn't set
 
-        except (
-            OpenAIChatCompletionClientStructuredOutputWithCreateIntercept.Verification
-        ) as verification:
+        except Verification as verification:
             await handle_verification(verification, expected_function_calls)
 
         # logger.debug(f"\n--- Completed task: {task_text} ---\n")
