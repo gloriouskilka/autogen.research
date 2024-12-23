@@ -679,3 +679,71 @@ class OpenAIChatCompletionClientStructuredOutputWithCreateIntercept(
 
         # Return the wrapper coroutine
         return await wrapper()
+
+
+# Almost copy-paste, but inherited from different class
+
+
+class OpenAIChatCompletionClientWithCreateIntercept(OpenAIChatCompletionClient):
+    def __init__(self, throw_on_create=False, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.throw_on_create = throw_on_create
+        self.create_results: list[Verification] = []
+
+    def set_throw_on_create(self, throw_on_create):
+        self.throw_on_create = throw_on_create
+
+    async def create(self, *args, **kwargs):
+        result_coroutine = super().create(*args, **kwargs)
+
+        # Define a wrapper coroutine
+        async def wrapper():
+            result = await result_coroutine
+
+            logger.debug(f"Intercepted create call: {result}")
+            assert isinstance(result, CreateResult)
+
+            verification = None  # Initialize verification object
+
+            if result.finish_reason == "function_calls":
+                # Handle function calls
+                assert isinstance(
+                    result.content, list
+                ), "Expected result.content to be a list"
+                if len(result.content) == 0:
+                    raise Exception("No function calls returned.")
+
+                function_calls = []
+                for function_call in result.content:
+                    assert isinstance(
+                        function_call, FunctionCall
+                    ), f"Expected FunctionCall, got {type(function_call)}"
+                    function_call_record = FunctionCallRecord(
+                        function_name=function_call.name,
+                        arguments=json.loads(function_call.arguments),
+                    )
+                    function_calls.append(function_call_record)
+
+                # After collecting all function calls, create the verification object
+                verification = FunctionCallVerification(result, function_calls)
+
+            elif result.finish_reason == "stop":
+                # Handle text results
+                assert isinstance(
+                    result.content, str
+                ), "Expected result.content to be a string"
+
+                verification = TextResultVerification(result)
+
+            else:
+                raise Exception(f"Unexpected finish_reason: {result.finish_reason}")
+
+            if self.throw_on_create:
+                raise verification
+            else:
+                self.create_results.append(verification)
+
+            return result
+
+        # Return the wrapper coroutine
+        return await wrapper()
