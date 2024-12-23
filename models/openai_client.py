@@ -2,7 +2,19 @@ import asyncio
 import json
 import warnings
 from asyncio import Task
-from typing import Optional, Dict, Any, Sequence, Mapping, Type, Union, cast, List, overload, TypeVar
+from typing import (
+    Optional,
+    Dict,
+    Any,
+    Sequence,
+    Mapping,
+    Type,
+    Union,
+    cast,
+    List,
+    overload,
+    TypeVar,
+)
 
 import httpx
 from autogen_core import CancellationToken, Image, FunctionCall
@@ -17,7 +29,10 @@ from autogen_core.models import (
     TopLogprob,
 )
 from autogen_core.tools import Tool, ToolSchema
-from autogen_ext.models.openai import OpenAIChatCompletionClient, OpenAIClientConfiguration
+from autogen_ext.models.openai import (
+    OpenAIChatCompletionClient,
+    OpenAIClientConfiguration,
+)
 from autogen_ext.models.openai._openai_client import (
     _openai_client_from_config,
     _create_args_from_config,
@@ -35,7 +50,12 @@ from openai._models import FinalRequestOptions
 from openai._types import ResponseT, HttpxSendArgs
 from openai._utils import asyncify
 from openai.types import FunctionDefinition, FunctionParameters
-from openai.types.chat import ParsedChatCompletion, ChatCompletion, ParsedChoice, ChatCompletionToolParam
+from openai.types.chat import (
+    ParsedChatCompletion,
+    ChatCompletion,
+    ParsedChoice,
+    ChatCompletionToolParam,
+)
 from openai.types.chat.chat_completion import Choice
 from pydantic import BaseModel
 from typing_extensions import Unpack
@@ -132,7 +152,7 @@ def convert_tools(
     return result
 
 
-class MyOpenAIChatCompletionClient(OpenAIChatCompletionClient):
+class OpenAIChatCompletionClientStructuredOutput(OpenAIChatCompletionClient):
     """Chat completion client for OpenAI hosted models.
 
     You can also use this client for OpenAI-compatible ChatCompletion endpoints.
@@ -226,7 +246,9 @@ class MyOpenAIChatCompletionClient(OpenAIChatCompletionClient):
         # Make sure all extra_create_args are valid
         extra_create_args_keys = set(extra_create_args.keys())
         if not create_kwargs.issuperset(extra_create_args_keys):
-            raise ValueError(f"Extra create args are invalid: {extra_create_args_keys - create_kwargs}")
+            raise ValueError(
+                f"Extra create args are invalid: {extra_create_args_keys - create_kwargs}"
+            )
 
         # Copy the create args and overwrite anything in extra_create_args
         create_args = self._create_args.copy()
@@ -248,15 +270,21 @@ class MyOpenAIChatCompletionClient(OpenAIChatCompletionClient):
                 response_format_value = None
 
         # Remove 'response_format' from create_args to prevent passing it twice
-        create_args_no_response_format = {k: v for k, v in create_args.items() if k != "response_format"}
+        create_args_no_response_format = {
+            k: v for k, v in create_args.items() if k != "response_format"
+        }
 
         # TODO: allow custom handling.
         # For now we raise an error if images are present and vision is not supported
         if self.capabilities["vision"] is False:
             for message in messages:
                 if isinstance(message, UserMessage):
-                    if isinstance(message.content, list) and any(isinstance(x, Image) for x in message.content):
-                        raise ValueError("Model does not support vision and image was provided")
+                    if isinstance(message.content, list) and any(
+                        isinstance(x, Image) for x in message.content
+                    ):
+                        raise ValueError(
+                            "Model does not support vision and image was provided"
+                        )
 
         if json_output is not None:
             if self.capabilities["json_output"] is False and json_output is True:
@@ -349,7 +377,9 @@ class MyOpenAIChatCompletionClient(OpenAIChatCompletionClient):
         usage = RequestUsage(
             # TODO backup token counting
             prompt_tokens=result.usage.prompt_tokens if result.usage is not None else 0,
-            completion_tokens=(result.usage.completion_tokens if result.usage is not None else 0),
+            completion_tokens=(
+                result.usage.completion_tokens if result.usage is not None else 0
+            ),
         )
 
         if self._resolved_model is not None:
@@ -360,7 +390,9 @@ class MyOpenAIChatCompletionClient(OpenAIChatCompletionClient):
                 )
 
         # Limited to a single choice currently.
-        choice: Union[ParsedChoice[Any], ParsedChoice[BaseModel], Choice] = result.choices[0]
+        choice: Union[ParsedChoice[Any], ParsedChoice[BaseModel], Choice] = (
+            result.choices[0]
+        )
         if choice.finish_reason == "function_call":
             raise ValueError("Function calls are not supported in this context")
 
@@ -388,7 +420,10 @@ class MyOpenAIChatCompletionClient(OpenAIChatCompletionClient):
                 ChatCompletionTokenLogprob(
                     token=x.token,
                     logprob=x.logprob,
-                    top_logprobs=[TopLogprob(logprob=y.logprob, bytes=y.bytes) for y in x.top_logprobs],
+                    top_logprobs=[
+                        TopLogprob(logprob=y.logprob, bytes=y.bytes)
+                        for y in x.top_logprobs
+                    ],
                     bytes=x.bytes,
                 )
                 for x in choice.logprobs.content
@@ -546,9 +581,9 @@ class MyOpenAIChatCompletionClient(OpenAIChatCompletionClient):
     #     )
 
 
-
-
-class OpenAIChatCompletionClientWrapper(MyOpenAIChatCompletionClient):
+class OpenAIChatCompletionClientStructuredOutputWithCreateIntercept(
+    OpenAIChatCompletionClientStructuredOutput
+):
     class Verification(Exception):
         result: CreateResult
 
@@ -561,10 +596,16 @@ class OpenAIChatCompletionClientWrapper(MyOpenAIChatCompletionClient):
         # You can include other fields as necessary, such as the function call id, etc.
 
     class FunctionCallVerification(Verification):
-        function_calls: list["OpenAIChatCompletionClientWrapper.FunctionCallRecord"]
+        function_calls: list[
+            "OpenAIChatCompletionClientStructuredOutputWithCreateIntercept.FunctionCallRecord"
+        ]
 
         def __init__(
-            self, result: CreateResult, function_calls: list["OpenAIChatCompletionClientWrapper.FunctionCallRecord"]
+            self,
+            result: CreateResult,
+            function_calls: list[
+                "OpenAIChatCompletionClientStructuredOutputWithCreateIntercept.FunctionCallRecord"
+            ],
         ):
             super().__init__(result)
             self.function_calls = function_calls
@@ -579,7 +620,9 @@ class OpenAIChatCompletionClientWrapper(MyOpenAIChatCompletionClient):
     def __init__(self, throw_on_create=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.throw_on_create = throw_on_create
-        self.create_results: list[OpenAIChatCompletionClientWrapper.Verification] = []
+        self.create_results: list[
+            OpenAIChatCompletionClientStructuredOutputWithCreateIntercept.Verification
+        ] = []
 
     def set_throw_on_create(self, throw_on_create):
         self.throw_on_create = throw_on_create
@@ -598,15 +641,20 @@ class OpenAIChatCompletionClientWrapper(MyOpenAIChatCompletionClient):
 
             if result.finish_reason == "function_calls":
                 # Handle function calls
-                assert isinstance(result.content, list), "Expected result.content to be a list"
+                assert isinstance(
+                    result.content, list
+                ), "Expected result.content to be a list"
                 if len(result.content) == 0:
                     raise Exception("No function calls returned.")
 
                 function_calls = []
                 for function_call in result.content:
-                    assert isinstance(function_call, FunctionCall), f"Expected FunctionCall, got {type(function_call)}"
+                    assert isinstance(
+                        function_call, FunctionCall
+                    ), f"Expected FunctionCall, got {type(function_call)}"
                     function_call_record = self.FunctionCallRecord(
-                        function_name=function_call.name, arguments=json.loads(function_call.arguments)
+                        function_name=function_call.name,
+                        arguments=json.loads(function_call.arguments),
                     )
                     function_calls.append(function_call_record)
 
@@ -615,7 +663,9 @@ class OpenAIChatCompletionClientWrapper(MyOpenAIChatCompletionClient):
 
             elif result.finish_reason == "stop":
                 # Handle text results
-                assert isinstance(result.content, str), "Expected result.content to be a string"
+                assert isinstance(
+                    result.content, str
+                ), "Expected result.content to be a string"
 
                 verification = self.TextResultVerification(result)
 

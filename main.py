@@ -32,8 +32,8 @@ from agents.final_pipeline_agent import FinalPipelineAgent
 from autogen_core.tool_agent import ToolAgent
 
 from models.openai_client import (
-    MyOpenAIChatCompletionClient,
-    OpenAIChatCompletionClientWrapper,
+    OpenAIChatCompletionClientStructuredOutput,
+    OpenAIChatCompletionClientStructuredOutputWithCreateIntercept,
 )
 from tools.function_tools import (
     # pipeline_a_tool,
@@ -112,7 +112,8 @@ def remove_any_fields(data: Dict, any_fields: List[str]):
 
 async def handle_verification(verification, expected_function_calls):
     if isinstance(
-        verification, OpenAIChatCompletionClientWrapper.FunctionCallVerification
+        verification,
+        OpenAIChatCompletionClientStructuredOutputWithCreateIntercept.FunctionCallVerification,
     ):
         actual_function_calls = []
         for function_call_record in verification.function_calls:
@@ -151,7 +152,8 @@ async def handle_verification(verification, expected_function_calls):
             logger.info("No differences found.")
 
     elif isinstance(
-        verification, OpenAIChatCompletionClientWrapper.TextResultVerification
+        verification,
+        OpenAIChatCompletionClientStructuredOutputWithCreateIntercept.TextResultVerification,
     ):
         content = verification.content
         print(f"Text content: {content}")
@@ -211,9 +213,11 @@ async def main():
     # )
 
     # model_client = MyOpenAIChatCompletionClient(  # This has a fix
-    model_client = OpenAIChatCompletionClientWrapper(  # This has a fix
-        model=settings.model,
-        api_key=settings.openai_api_key,
+    model_client = (
+        OpenAIChatCompletionClientStructuredOutputWithCreateIntercept(  # This has a fix
+            model=settings.model,
+            api_key=settings.openai_api_key,
+        )
     )
 
     runtime.start()
@@ -354,7 +358,9 @@ async def main():
             # Clear the create_results after handling
             # model_client.create_results.clear()  # if set_throw_on_create wasn't set
 
-        except OpenAIChatCompletionClientWrapper.Verification as verification:
+        except (
+            OpenAIChatCompletionClientStructuredOutputWithCreateIntercept.Verification
+        ) as verification:
             await handle_verification(verification, expected_function_calls)
 
         # logger.debug(f"\n--- Completed task: {task_text} ---\n")
