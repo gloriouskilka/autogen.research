@@ -31,7 +31,7 @@ from agents.analysis_agent import AnalysisAgent
 from agents.final_pipeline_agent import FinalPipelineAgent
 from autogen_core.tool_agent import ToolAgent
 
-from models.openai_client import MyOpenAIChatCompletionClient
+from models.openai_client import MyOpenAIChatCompletionClient, OpenAIChatCompletionClientWrapper
 from tools.function_tools import (
     # pipeline_a_tool,
     # pipeline_b_tool,
@@ -65,7 +65,8 @@ async def main():
     #     api_key=settings.openai_api_key,
     # )
 
-    model_client = MyOpenAIChatCompletionClient(  # This has a fix
+    # model_client = MyOpenAIChatCompletionClient(  # This has a fix
+    model_client = OpenAIChatCompletionClientWrapper(  # This has a fix
         model=settings.model,
         api_key=settings.openai_api_key,
     )
@@ -78,7 +79,7 @@ async def main():
     ) -> Filters:
         """
         The user will ask about a system or multiple systems, no need to worry what that means.
-        Please map the user's input to the system filters.
+        Please map the user's input to the system filters. Key always must be 'system'.
         Examples: "what is happening with B35 and B36 and B37?" -> {"system": ["B35", "B36", "B37"]}
         """
 
@@ -129,12 +130,14 @@ async def main():
         },
     }
 
+    model_client.set_throw_on_create(True)
+
     for task, result_expected in task_to_result.items():
         agent = ResponseFormatAssistantAgent(
             name="ResponseFormatAssistantAgent",
             model_client=model_client,
             response_format=Filters,
-            system_message="The user will mention some IDs - those IDs are system's names, please help to extract them.",
+            system_message="The user will mention some IDs - those IDs are system's names, please help to extract them",
             tools=[FunctionTool(decide_system_filters, description="DAVAI")],
             # reflect_on_tool_use=True,
             # response_format_reflect_on_tool_use=FiltersReflect,
