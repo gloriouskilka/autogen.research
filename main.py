@@ -334,7 +334,7 @@ async def main():
         ],
     }
 
-    model_client.set_throw_on_create(True)
+    # model_client.set_throw_on_create(True)
 
     response_format = None
     if isinstance(model_client, OpenAIChatCompletionClientStructuredOutput):
@@ -370,8 +370,12 @@ async def main():
             # for verification in model_client.create_results:
             #     await handle_verification(verification)
 
+            assert len(model_client.create_results) == 1
+            verification = model_client.create_results[0]
+            await handle_verification(verification, expected_function_calls)
+
             # Clear the create_results after handling
-            # model_client.create_results.clear()  # if set_throw_on_create wasn't set
+            model_client.create_results.clear()  # if set_throw_on_create wasn't set
 
         except Verification as verification:
             await handle_verification(verification, expected_function_calls)
