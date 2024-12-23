@@ -210,14 +210,6 @@ async def main():
     #     api_key=settings.openai_api_key,
     # )
 
-    # model_client = MyOpenAIChatCompletionClient(  # This has a fix
-    # model_client = (
-    #     OpenAIChatCompletionClientStructuredOutputWithCreateIntercept(  # This has a fix
-    #         model=settings.model,
-    #         api_key=settings.openai_api_key,
-    #     )
-    # )
-
     model_client = (
         OpenAIChatCompletionClientStructuredOutputWithCreateIntercept(  # This has a fix
             model=settings.model,
@@ -334,7 +326,7 @@ async def main():
         ],
     }
 
-    # model_client.set_throw_on_create(True)
+    model_client.set_throw_on_create(True)
 
     response_format = None
     if isinstance(model_client, OpenAIChatCompletionClientStructuredOutput):
@@ -344,8 +336,10 @@ async def main():
         name="ResponseFormatAssistantAgent",
         model_client=model_client,
         response_format=response_format,
-        system_message="The user will mention some IDs - those IDs are system's names, please help to extract them. Always use key: 'system'",
-        tools=[FunctionTool(decide_system_filters, description="DAVAI")],
+        # system_message="The user will mention some IDs - those IDs are system's names, please help to extract them. Always use key: 'system'",
+        system_message="The user will mention some IDs - those IDs are system's names, please help to extract them",
+        # tools=[FunctionTool(decide_system_filters, description="DAVAI")],
+        tools=[decide_system_filters],
         # reflect_on_tool_use=True,
         # response_format_reflect_on_tool_use=FiltersReflect,
     )
